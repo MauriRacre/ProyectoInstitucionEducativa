@@ -10,7 +10,7 @@ function createWindow() {
     }
   });
 
-  win.loadFile('src/views/index.html');
+  win.loadFile('src/renderer/index.html');
 }
 
 app.whenReady().then(createWindow);
