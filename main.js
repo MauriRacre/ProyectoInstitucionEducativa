@@ -6,11 +6,35 @@ function createWindow() {
     width: 1000,
     height: 700,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js')
+      contextIsolation: true,
+      nodeIntegration: false,
+      //preload: path.join(__dirname, 'preload.js')
     }
   });
+  const isDev = !app.isPackaged;
+  //const isDev = false;
 
-  win.loadFile('src/renderer/index.html');
+  if (isDev) {
+    // Angular en desarrollo
+    win.loadURL("http://localhost:4200");
+    win.webContents.openDevTools();
+  } else {
+    // Angular compilado (producción)
+    // OJO: esta ruta depende de tu build output
+    win.loadFile(
+      path.join(__dirname, "renderer", "dist", "renderer", "browser", "index.html")
+    );
+  }
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+
+  app.on("activate", () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+});
+
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") app.quit();
+});
