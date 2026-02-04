@@ -1,6 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ToastService } from '../../core/toast/toast.service';
+import { ModalService } from '../../core/swal/swal.service';
 
 type TabKey = 'all' | 'debt' | 'ok';
 
@@ -23,6 +25,10 @@ interface TutorRow {
     templateUrl: './directory.html',
 })
 export class Directory {
+    constructor(
+        private toast: ToastService,
+        private modal: ModalService
+    ){}
     query = '';
     selectedTab: TabKey = 'all';
 
@@ -159,9 +165,21 @@ export class Directory {
 
     onNewTutor() {
         console.log('Nuevo tutor');
+        this.toast.error('Guardado correctamente');
     }
 
-    onCharge(tutor: TutorRow) {
+    async onCharge(tutor: TutorRow) {
         console.log('Cobrar a', tutor);
+        const ok = await this.modal.confirm({
+            title: 'Eliminar registro',
+            message: 'Esta acción no se puede deshacer',
+            tone: 'success',
+            confirmText: 'Eliminar',
+            cancelText: 'Cancelar'
+        });
+
+        if (ok) {
+            this.toast.success('Eliminado');
+        }
     }
 }

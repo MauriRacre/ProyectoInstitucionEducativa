@@ -1,0 +1,36 @@
+<div class="fixed top-4 right-4 z-[2000] w-[92vw] max-w-sm space-y-2">
+    <div
+        *ngFor="let t of (toast.toasts$ | async)"
+        class="flex items-center relative overflow-hidden rounded-lg border bg-white shadow-md"
+        [ngClass]="borderClass(t.type)"
+    >
+        <div class="absolute left-0 top-0 h-full w-1.5" [ngClass]="barClass(t.type)"></div>
+        <div class="flex gap-3 p-3">
+            <div class="mt-0.5 flex h-10 w-10 items-center justify-center font-bold"
+                [ngClass]="iconBgClass(t.type)">
+                <!--<span class="text-base leading-none">{{ icon(t.type)}}</span>-->
+                <svg viewBox="0 0 640 640" fill="currentColor" aria-hidden="true">
+                    <path [attr.d]="icon(t.type)"></path>
+                </svg>
+            </div>
+        </div>
+        <div class="min-w-0 flex-1">
+            <div class="flex items-center justify-between gap-2">
+                <div class="min-w-0">
+                    <div *ngIf="t.title" class="truncate text-sm font-semibold text-gray-900">{{t.title}}</div>
+                    <div class="text-sm text-gray-700" [ngClass]="t.title ? '': 'font-semibold text-gray-900'">
+                        {{t.message}}
+                    </div>
+                </div>
+                <button
+                    type="button"
+                    (click)="toast.dismiss(t.id)"
+                    class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                    aria-label="Cerrar"
+                >
+                    ✕
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

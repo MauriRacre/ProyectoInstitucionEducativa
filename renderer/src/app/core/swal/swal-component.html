@@ -1,0 +1,54 @@
+<ng-container *ngIf="(modal.state$ | async) as s">
+    <div *ngIf="s.open" class="fixed inset-0 z-[1500]">
+        <!-- backdrop -->
+        <div class="absolute inset-0 bg-black/40" (click)="onBackdrop(s.kind)"></div>
+
+        <!-- dialog -->
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
+            <div class="p-5">
+                <div class="flex justify-end">
+                    <button
+                        type="button"
+                        class="rounded-lg px-2 py-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                        (click)="modal.close(false)"
+                        aria-label="Cerrar"
+                    >
+                        ✕
+                    </button>
+                </div>
+                <div class="flex flex-col justify-center items-center">
+                    <svg  class="h-32 w-32" viewBox="0 0 640 640" fill="currentColor" aria-hidden="true" [ngClass]="toneBg(s.tone)">
+                        <path [attr.d]="toneIcon(s.tone)"></path>
+                    </svg>
+                    
+                    <div class="min-w-0 flex-1 text-center">
+                        <h3 class="text-lg font-semibold text-gray-900">{{ s.title }}</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">{{ s.message }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 border-t border-gray-100 bg-gray-50 px-5 py-4">
+                <button
+                *ngIf="s.kind === 'confirm'"
+                type="button"
+                class="rounded-xl bg-white px-4 py-2 w-full text-sm font-semibold text-gray-800 border border-gray-200 hover:bg-gray-100"
+                (click)="modal.close(false)"
+                >
+                {{ s.cancelText }}
+                </button>
+
+                <button
+                type="button"
+                class="rounded-xl px-4 py-2 w-full text-sm font-semibold text-white"
+                [ngClass]="confirmBtnClass(s.tone)"
+                (click)="modal.close(true)"
+                >
+                {{ s.confirmText }}
+                </button>
+            </div>
+            </div>
+        </div>
+    </div>
+</ng-container>
