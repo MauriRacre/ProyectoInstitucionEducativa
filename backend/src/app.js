@@ -22,3 +22,10 @@ app.use('/api/pagos', pagoRoutes);
 
 const authRoutes = require('./routes/auth.routes');
 app.use('/api/auth', authRoutes);
+
+app.use("/api/catalogs", require("./routes/catalogs.routes"));
+app.use("/api/categories", require("./routes/categories.routes"));
+app.use("/api/payments", require("./routes/payments.routes"));
+app.use("/api/movements", require("./routes/movements.routes"));
+
+

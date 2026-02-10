@@ -19,14 +19,29 @@ router.get('/tutor/:tutorId', async (req, res) => {
   }
 });
 
+router.get("/", async (req, res) => {
+  const [rows] = await pool.query(`
+    SELECT 
+      id,
+      tutor_id AS tutorId,
+      nombre AS name,
+      grado AS grade,
+      paralelo AS parallel
+    FROM estudiantes
+  `);
+
+  res.json(rows);
+});
+
+
 // Crear estudiante
 router.post('/', async (req, res) => {
   try {
-    const { tutor_id, nombre, grado } = req.body;
+    const { nombre, grado, paralelo, tutor_id } = req.body;
 
     const [result] = await pool.query(
-      'INSERT INTO estudiantes (tutor_id, nombre, grado) VALUES (?, ?, ?)',
-      [tutor_id, nombre, grado]
+      "INSERT INTO estudiantes (nombre, grado, paralelo, tutor_id) VALUES (?, ?, ?, ?)",
+      [nombre, grado, paralelo, tutor_id]
     );
 
     res.json({ ok: true, id: result.insertId });
