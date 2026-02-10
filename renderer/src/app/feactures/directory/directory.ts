@@ -3,6 +3,8 @@ import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastService } from '../../core/toast/toast.service';
 import { ModalService } from '../../core/swal/swal.service';
+import { ModalRegister } from '../../components/register/modalRegister';
+import { RouterLink } from "@angular/router";
 
 type TabKey = 'all' | 'debt' | 'ok';
 
@@ -19,9 +21,11 @@ interface TutorRow {
     selector: 'app-directory',
     standalone: true,
     imports: [
-        CommonModule,
-        FormsModule
-    ],
+    CommonModule,
+    FormsModule,
+    ModalRegister,
+    RouterLink
+],
     templateUrl: './directory.html',
 })
 export class Directory {
@@ -133,39 +137,53 @@ export class Directory {
         this.page = p;
     }
     get visiblePages(): (number | '...')[] {
-    const pages: (number | '...')[] = [];
-    const total = this.totalPages;
-    const current = this.page;
-    const delta = 1; 
+        const pages: (number | '...')[] = [];
+        const total = this.totalPages;
+        const current = this.page;
+        const delta = 1; 
 
-    if (total <= 7) {
-        for (let i = 1; i <= total; i++) pages.push(i);
+        if (total <= 7) {
+            for (let i = 1; i <= total; i++) pages.push(i);
+            return pages;
+        }
+
+        pages.push(1);
+
+        if (current > 3) pages.push('...');
+
+        const start = Math.max(2, current - delta);
+        const end = Math.min(total - 1, current + delta);
+
+        for (let i = start; i <= end; i++) {
+            pages.push(i);
+        }
+
+        if (current < total - 2) pages.push('...');
+
+        pages.push(total);
+
         return pages;
     }
 
-    pages.push(1);
-
-    if (current > 3) pages.push('...');
-
-    const start = Math.max(2, current - delta);
-    const end = Math.min(total - 1, current + delta);
-
-    for (let i = start; i <= end; i++) {
-        pages.push(i);
-    }
-
-    if (current < total - 2) pages.push('...');
-
-    pages.push(total);
-
-    return pages;
-    }
-
     trackById = (_: number, item: TutorRow) => item.id;
-
+    openModal = false;
+    saving = false;
+    mode: 'create' | 'edit' = 'create';
+    createValue: TutorRow |null = null;
     onNewTutor() {
-        console.log('Nuevo tutor');
-        this.toast.error('Guardado correctamente');
+        this.mode = 'create';
+        this.openModal = true;
+    }
+    onRegister(payload: any){
+        try {
+            this.saving = true;
+
+            this.openModal = false;
+        } catch (error) {   
+            
+        }finally{
+            this.saving = false;
+        }
     }
 
     async onCharge(tutor: TutorRow) {

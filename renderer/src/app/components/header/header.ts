@@ -5,7 +5,6 @@ import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-header',
-  standalone: true,
   imports: [
     CommonModule,
     RouterModule,
@@ -20,8 +19,7 @@ export class Header {
   search = '';
 
   navItems = [
-    { label: 'Inicio', href: '/', exact: true },
-    { label: 'Directorio', href: '/directorio' },
+    { label: 'Directorio', href: '/' , exact: true },
     { label: 'Historial', href: '/history' },
   ];
 

@@ -1,5 +1,5 @@
 <ng-container *ngIf="(modal.state$ | async) as s">
-    <div *ngIf="s.open" class="fixed inset-0 z-[1500]">
+    <div *ngIf="s.open" class="fixed inset-0 z-[9999]">
         <!-- backdrop -->
         <div class="absolute inset-0 bg-black/40" (click)="onBackdrop(s.kind)"></div>
 
@@ -33,7 +33,7 @@
                 <button
                 *ngIf="s.kind === 'confirm'"
                 type="button"
-                class="rounded-xl bg-white px-4 py-2 w-full text-sm font-semibold text-gray-800 border border-gray-200 hover:bg-gray-100"
+                class="rounded-lg bg-white px-4 py-2 w-full text-sm font-semibold text-gray-800 border border-gray-200 hover:bg-gray-100"
                 (click)="modal.close(false)"
                 >
                 {{ s.cancelText }}
@@ -41,7 +41,7 @@
 
                 <button
                 type="button"
-                class="rounded-xl px-4 py-2 w-full text-sm font-semibold text-white"
+                class="rounded-lg px-4 py-2 w-full text-sm font-semibold text-white"
                 [ngClass]="confirmBtnClass(s.tone)"
                 (click)="modal.close(true)"
                 >
