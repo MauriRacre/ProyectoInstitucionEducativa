@@ -58,7 +58,6 @@ export class Directory {
         },
     ];
 
-    // Derived
     get filteredTutors(): TutorRow[] {
         const q = this.query.trim().toLowerCase();
 
