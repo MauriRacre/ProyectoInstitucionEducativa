@@ -6,7 +6,6 @@ export type DestinoPago = 'PAGAR_AHORA' | 'AGREGAR_DEUDA';
 
 @Component({
   selector: 'app-modal-abono',
-  standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './modalAbono.html',
 })
