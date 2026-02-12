@@ -1,4 +1,4 @@
-<header class="top-0 z-50 w-full border-b border-gray-200 bg-white/80 shadow-lg">
+<header class="top-0 z-50 w-full border-b bg-celeste shadow-lg">
     <div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
 
     <!-- Left -->
@@ -6,7 +6,7 @@
         <!-- Mobile: hamburger -->
         <button
             type="button"
-            class="inline-flex items-center justify-center rounded-xl p-2 text-gray-700 hover:bg-gray-100 lg:hidden"
+            class="inline-flex items-center justify-center rounded-xl p-2 text-white hover:bg-black/50 lg:hidden"
             aria-label="Abrir menú"
             (click)="toggleMobileMenu()"
         >
@@ -22,12 +22,12 @@
         <!-- Logo -->
         <a class="flex items-center gap-2" [routerLink]="['/']">
             <!-- Cambia por tu logo -->
-            <div class="h-12 w-12">
+            <div class="h-14 w-14">
                 <img [src]="'assets/images/logo.png'" alt="logo">
             </div>
-            <div class="hidden sm:block leading-tight">
-                <div class="text-xl font-semibold text-gray-900">Unidad Educativa</div>
-                <div class="text-base text-gray-500">Maravillas del Saber</div>
+            <div class="hidden sm:block leading-tight font-semibold text-white">
+                <div class="text-xl">Unidad Educativa</div>
+                <div class="text-sm">Maravillas del Saber</div>
             </div>
         </a>
         </div>
@@ -37,9 +37,9 @@
         <a
             *ngFor="let item of navItems"
             [routerLink]="item.href"
-            routerLinkActive="bg-gray-900 text-white"
+            routerLinkActive="bg-black/50"
             [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
-            class="rounded-xl px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition"
+            class="rounded-xl px-3 py-2 text-base font-medium text-white hover:bg-gray-500 transition"
         >
             {{ item.label }}
         </a>
@@ -47,15 +47,15 @@
     </div>
 
     <!-- Mobile menu panel -->
-    <div *ngIf="mobileMenuOpen" class="lg:hidden border-t border-gray-200 bg-white">
+    <div *ngIf="mobileMenuOpen" class="lg:hidden border-t border-celeste bg-celeste">
         <nav class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-3 flex flex-col gap-1">
         <a
             *ngFor="let item of navItems"
             [routerLink]="item.href"
             (click)="closeMenus()"
-            routerLinkActive="bg-gray-900 text-white"
+            routerLinkActive="bg-black/50"
             [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
-            class="rounded-xl px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-100 transition"
+            class="rounded-xl px-3 py-2 text-base font-medium text-white hover:bg-gray-500 transition"
         >
             {{ item.label }}
         </a>

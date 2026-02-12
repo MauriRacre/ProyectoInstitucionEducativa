@@ -179,6 +179,7 @@ export class Directory {
             this.saving = true;
 
             this.openModal = false;
+            this.toast.success('Tutor registrado existosamente.');
         } catch (error) {   
             
         }finally{

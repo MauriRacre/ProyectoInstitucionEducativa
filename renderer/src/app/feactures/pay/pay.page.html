@@ -1,4 +1,4 @@
-<div class="min-h-screen bg-gray-50">
+ <div class="min-h-screen bg-gray-50">
   <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
     
     <!-- Header -->
@@ -16,7 +16,7 @@
       <button
         type="button"
         (click)="openModalAbono()"
-        class="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-800"
+        class="inline-flex items-center justify-center gap-2 rounded-xl bg-celeste px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-azul"
       >
         <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14M5 12h14"/>
@@ -179,7 +179,7 @@
                       <!-- Pay -->
                       <td class="px-5 py-4">
                         <div class="flex items-center gap-2">
-                          <span class="text-sky-700 font-semibold">Bs.</span>
+                          <span class="text-celeste font-semibold">Bs.</span>
                           <input
                             type="number"
                             min="0"
@@ -218,7 +218,7 @@
                               <div class="h-2 w-28 rounded-full bg-gray-100 overflow-hidden">
                                 <div
                                   class="h-full rounded-full"
-                                  [ngClass]="progressPct(p) >= 100 ? 'bg-emerald-600' : 'bg-sky-600'"
+                                  [ngClass]="progressPct(p) >= 100 ? 'bg-verde' : 'bg-celeste'"
                                   [style.width.%]="progressPct(p)"
                                 ></div>
                               </div>
@@ -249,8 +249,8 @@
                               </div>
 
                               <div class="flex items-center gap-3 text-sm">
-                                <span class="font-semibold text-sky-700">+ Bs. {{ h.paid | number:'1.2-2' }}</span>
-                                <span class="font-semibold text-emerald-700" *ngIf="h.discount > 0">
+                                <span class="font-semibold text-celeste">+ Bs. {{ h.paid | number:'1.2-2' }}</span>
+                                <span class="font-semibold text-verde" *ngIf="h.discount > 0">
                                   - Bs. {{ h.discount | number:'1.2-2' }}
                                 </span>
                                 <span class="text-xs text-gray-500">
@@ -260,7 +260,7 @@
                                   *ngIf="i === 0 && !h.reverted"
                                   type="button"
                                   (click)="revertLastMovement(p)"
-                                  class="ml-2 rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+                                  class="ml-2 rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-rojo hover:bg-red-50"
                                   title="Revertir último movimiento"
                                 >
                                   Revertir
@@ -351,7 +351,7 @@
               <div class="text-base font-semibold text-gray-900">Resumen de Pago</div>
               <div class="text-sm text-gray-500">Selecciona conceptos.</div>
             </div>
-            <div class="h-10 w-10 text-sky-700 flex items-center justify-center font-bold">
+            <div class="h-10 w-10 text-celeste flex items-center justify-center font-bold">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" class="w-8">
                 <path d="M128 96C92.7 96 64 124.7 64 160L64 448C64 483.3 92.7 512 128 512L512 512C547.3 512 576 483.3 576 448L576 256C576 220.7 547.3 192 512 192L136 192C122.7 192 112 181.3 112 168C112 154.7 122.7 144 136 144L520 144C533.3 144 544 133.3 544 120C544 106.7 533.3 96 520 96L128 96zM480 320C497.7 320 512 334.3 512 352C512 369.7 497.7 384 480 384C462.3 384 448 369.7 448 352C448 334.3 462.3 320 480 320z"/>
               </svg>
@@ -371,12 +371,12 @@
 
             <div class="flex items-center justify-between text-sm">
               <div class="text-gray-600 font-semibold">Descuentos</div>
-              <div class="font-semibold text-emerald-700">- Bs. {{ totals.discounts | number:'1.2-2' }}</div>
+              <div class="font-semibold text-verde">- Bs. {{ totals.discounts | number:'1.2-2' }}</div>
             </div>
 
             <div class="flex items-center justify-between text-sm">
               <div class="text-gray-600 font-semibold">Pendiente (seleccionados)</div>
-              <div class="font-semibold text-red-700">Bs. {{ totals.selectedPending | number:'1.2-2' }}</div>
+              <div class="font-semibold text-rojo">Bs. {{ totals.selectedPending | number:'1.2-2' }}</div>
             </div>
 
             <div class="h-px bg-gray-200 my-2"></div>
@@ -391,7 +391,7 @@
             type="button"
             (click)="confirmPayment()"
             [disabled]="selectedCount === 0 || totals.toCharge <= 0"
-            class="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl text-white bg-sky-700 px-4 py-3 text-sm font-semibold hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-50"
+            class="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl text-white bg-celeste px-4 py-3 text-sm font-semibold hover:bg-azul disabled:cursor-not-allowed disabled:opacity-50"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" class="w-5">
               <path d="M320 576C178.6 576 64 461.4 64 320C64 178.6 178.6 64 320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576zM438 209.7C427.3 201.9 412.3 204.3 404.5 215L285.1 379.2L233 327.1C223.6 317.7 208.4 317.7 199.1 327.1C189.8 336.5 189.7 351.7 199.1 361L271.1 433C276.1 438 282.9 440.5 289.9 440C296.9 439.5 303.3 435.9 307.4 430.2L443.3 243.2C451.1 232.5 448.7 217.5 438 209.7z"/>

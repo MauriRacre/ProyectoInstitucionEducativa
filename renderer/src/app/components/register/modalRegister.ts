@@ -131,6 +131,11 @@ export class ModalRegister {
     this.close.emit();
   }
 
+  touchedInvalid(ctrlName: string): boolean {
+    const c = this.form.get(ctrlName);
+    return !!c && c.touched && c.invalid;
+  }
+  
   async onCancel() {
     if (this.loading) return;
     if (!this.form.dirty) {

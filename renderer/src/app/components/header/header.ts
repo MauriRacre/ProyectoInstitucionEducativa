@@ -20,7 +20,8 @@ export class Header {
 
   navItems = [
     { label: 'Directorio', href: '/' , exact: true },
-    { label: 'Historial', href: '/history' },
+    { label: 'Dashboard', href: '/history' },
+    { label: 'Configuración', href: '/settings' }
   ];
 
   toggleMobileMenu() {
