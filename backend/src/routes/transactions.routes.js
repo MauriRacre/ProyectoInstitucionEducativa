@@ -8,7 +8,6 @@ router.get("/", async (req, res) => {
     const pageSize = parseInt(req.query.pageSize) || 10;
     const offset = (page - 1) * pageSize;
 
-    // datos paginados
     const [rows] = await pool.query(
       `SELECT 
           p.id,
@@ -31,8 +30,6 @@ router.get("/", async (req, res) => {
        LIMIT ? OFFSET ?`,
       [pageSize, offset]
     );
-
-    // total registros
     const [[{ total }]] = await pool.query(
       `SELECT COUNT(*) AS total FROM pagos`
     );

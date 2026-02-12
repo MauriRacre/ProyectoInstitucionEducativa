@@ -82,10 +82,6 @@ router.get("/:studentId/payment-concepts", async (req, res) => {
       const pending = c.monto - sum.total;
 
       let history = [];
-
-      // =============================
-      // historial
-      // =============================
       if (includeHistory === "true") {
         const [rows] = await pool.query(
           `SELECT id, fecha, monto, descuento, nota, responsable
@@ -129,7 +125,6 @@ router.get("/:studentId/payment-concepts", async (req, res) => {
   }
 });
 
-// Crear estudiante
 router.post('/', async (req, res) => {
   try {
     const { nombre, grado, paralelo, tutor_id } = req.body;
