@@ -12,7 +12,9 @@ router.get("/", async (req, res) => {
       pageSize = 10
     } = req.query;
 
-    const offset = (page - 1) * pageSize;
+    const offset = (Number(page) - 1) * Number(pageSize);
+
+    // total registros
     const [[{ total }]] = await pool.query(
       `SELECT COUNT(*) as total
        FROM tutores
@@ -20,34 +22,43 @@ router.get("/", async (req, res) => {
       [`%${q}%`]
     );
 
+    // lista base
     const [tutores] = await pool.query(
       `SELECT id, nombre, correo AS email, telefono
        FROM tutores
        WHERE nombre LIKE ?
        LIMIT ? OFFSET ?`,
-      [`%${q}%`, Number(pageSize), Number(offset)]
+      [`%${q}%`, Number(pageSize), offset]
     );
 
     const items = [];
 
     for (const t of tutores) {
 
+      // alumnos
       const [students] = await pool.query(
         `SELECT nombre FROM estudiantes WHERE tutor_id = ?`,
         [t.id]
       );
-      const [[{ pending }]] = await pool.query(
+
+      // 🔥 BALANCE = pagado - total
+      const [[{ balance }]] = await pool.query(
         `SELECT 
-          COALESCE(SUM(m.monto),0) -
-          COALESCE((
-            SELECT SUM(p.monto + p.descuento)
-            FROM pagos p
-            WHERE p.mensualidad_id = m.id
-          ),0) AS pending
-         FROM mensualidades m
-         JOIN estudiantes e ON e.id = m.estudiante_id
-         WHERE e.tutor_id = ?`,
-        [t.id]
+            COALESCE((
+              SELECT SUM(p.monto + p.descuento)
+              FROM pagos p
+              JOIN mensualidades mm ON mm.id = p.mensualidad_id
+              JOIN estudiantes ee ON ee.id = mm.estudiante_id
+              WHERE ee.tutor_id = ?
+            ),0)
+            -
+            COALESCE((
+              SELECT SUM(m.total)
+              FROM mensualidades m
+              JOIN estudiantes e ON e.id = m.estudiante_id
+              WHERE e.tutor_id = ?
+            ),0) AS balance`,
+        [t.id, t.id]
       );
 
       items.push({
@@ -56,18 +67,19 @@ router.get("/", async (req, res) => {
         email: t.email,
         phone: t.telefono,
         students: students.map(s => s.nombre),
-        balance: pending
+        balance
       });
     }
 
+    // filtros
     let filtered = items;
 
     if (status === "DEBT") {
-      filtered = items.filter(i => i.balance > 0);
+      filtered = items.filter(i => i.balance < 0);
     }
 
     if (status === "OK") {
-      filtered = items.filter(i => i.balance <= 0);
+      filtered = items.filter(i => i.balance >= 0);
     }
 
     res.json({
@@ -82,10 +94,10 @@ router.get("/", async (req, res) => {
     apiError(res, "BUSINESS_RULE", "Error listando tutores");
   }
 });
-
 router.get("/:tutorId", async (req, res) => {
   try {
     const { tutorId } = req.params;
+
     const [[tutor]] = await pool.query(
       `SELECT id, nombre, correo AS email, telefono
        FROM tutores
@@ -104,26 +116,33 @@ router.get("/:tutorId", async (req, res) => {
       [tutorId]
     );
 
-    const [[{ pending }]] = await pool.query(
+    // 🔥 mismo cálculo correcto
+    const [[{ balance }]] = await pool.query(
       `SELECT 
-          COALESCE(SUM(m.monto),0) -
           COALESCE((
             SELECT SUM(p.monto + p.descuento)
             FROM pagos p
-            WHERE p.mensualidad_id = m.id
-          ),0) AS pending
-       FROM mensualidades m
-       JOIN estudiantes e ON e.id = m.estudiante_id
-       WHERE e.tutor_id = ?`,
-      [tutorId]
+            JOIN mensualidades mm ON mm.id = p.mensualidad_id
+            JOIN estudiantes ee ON ee.id = mm.estudiante_id
+            WHERE ee.tutor_id = ?
+          ),0)
+          -
+          COALESCE((
+            SELECT SUM(m.total)
+            FROM mensualidades m
+            JOIN estudiantes e ON e.id = m.estudiante_id
+            WHERE e.tutor_id = ?
+          ),0) AS balance`,
+      [tutorId, tutorId]
     );
+
     res.json({
       parent: {
         id: tutor.id,
         name: tutor.nombre,
         email: tutor.email,
         phone: tutor.telefono,
-        balance: pending
+        balance
       },
       students: students.map(s => ({
         id: s.id,
@@ -137,41 +156,6 @@ router.get("/:tutorId", async (req, res) => {
   } catch (error) {
     console.error(error);
     apiError(res, "BUSINESS_RULE", "Error obteniendo tutor");
-  }
-});
-
-router.get("/:tutorId/students", async (req, res) => {
-  try {
-    const { tutorId } = req.params;
-    const [[tutor]] = await pool.query(
-      `SELECT id FROM tutores WHERE id = ?`,
-      [tutorId]
-    );
-
-    if (!tutor) {
-      return apiError(res, "NOT_FOUND", "Tutor no encontrado");
-    }
-
-    const [students] = await pool.query(
-      `SELECT id, tutor_id, nombre, grado, paralelo
-       FROM estudiantes
-       WHERE tutor_id = ?`,
-      [tutorId]
-    );
-
-    res.json({
-      items: students.map(s => ({
-        id: s.id,
-        tutorId: s.tutor_id,
-        name: s.nombre,
-        grade: s.grado,
-        parallel: s.paralelo
-      }))
-    });
-
-  } catch (error) {
-    console.error(error);
-    apiError(res, "BUSINESS_RULE", "Error obteniendo estudiantes");
   }
 });
 
