@@ -94,6 +94,57 @@ router.get("/", async (req, res) => {
     apiError(res, "BUSINESS_RULE", "Error listando tutores");
   }
 });
+
+
+// filtro por busqueda, te muestra los datos del tutor si lo buscas por nombre de tutor, hijo o celular
+// ejemplo para que lo pruebes jaelsita - GET http://localhost:3000/api/tutores/search?q=juan
+router.get("/search", async (req, res) => {
+  try {
+    const {
+      q = "",
+      page = 1,
+      pageSize = 10
+    } = req.query;
+
+    const offset = (page - 1) * pageSize;
+    const search = `%${q}%`;
+
+    const [[{ total }]] = await pool.query(
+      `SELECT COUNT(DISTINCT t.id) as total
+       FROM tutores t
+       LEFT JOIN estudiantes e ON e.tutor_id = t.id
+       WHERE t.nombre LIKE ?
+          OR t.telefono LIKE ?
+          OR e.nombre LIKE ?`,
+      [search, search, search]
+    );
+
+    const [tutores] = await pool.query(
+      `SELECT DISTINCT
+          t.id, t.nombre, t.correo AS email, t.telefono
+       FROM tutores t
+       LEFT JOIN estudiantes e ON e.tutor_id = t.id
+       WHERE t.nombre LIKE ?
+          OR t.telefono LIKE ?
+          OR e.nombre LIKE ?
+       LIMIT ? OFFSET ?`,
+      [search, search, search, Number(pageSize), Number(offset)]
+    );
+
+    res.json({
+      items: tutores,
+      page: Number(page),
+      pageSize: Number(pageSize),
+      total
+    });
+
+  } catch (error) {
+    console.error(error);
+    apiError(res, "BUSINESS_RULE", "Error en búsqueda");
+  }
+});
+  
+
 router.get("/:tutorId", async (req, res) => {
   try {
     const { tutorId } = req.params;
@@ -388,6 +439,8 @@ router.put("/:id", async (req, res) => {
     apiError(res, "BUSINESS_RULE", "No se pudo actualizar");
   }
 });
+
+
 
 
 module.exports = router;
