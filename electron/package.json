@@ -11,7 +11,7 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "electron": "^40.2.1"
+    "electron": "^40.4.0"
   },
   "dependencies": {
     "concurrently": "^9.2.1"

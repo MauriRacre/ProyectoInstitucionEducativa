@@ -1,21 +1,14 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastService } from '../../core/toast/toast.service';
 import { ModalService } from '../../core/swal/swal.service';
 import { ModalRegister } from '../../components/register/modalRegister';
 import { RouterLink } from "@angular/router";
+import { TutorApiService, TutorStatusFilter, TutorListItem, TutorListResponse } from '../../core/services/tutor.service';
+import { finalize } from 'rxjs';
 
 type TabKey = 'all' | 'debt' | 'ok';
-
-interface TutorRow {
-    id: number | string;
-    name: string;
-    email: string;
-    phone: string;
-    students: string[];
-    balance: number;
-}
 
 @Component({
     selector: 'app-directory',
@@ -28,10 +21,11 @@ interface TutorRow {
 ],
     templateUrl: './directory.html',
 })
-export class Directory {
+export class Directory implements OnInit{
     constructor(
         private toast: ToastService,
-        private modal: ModalService
+        private modal: ModalService,
+        private tutorapi: TutorApiService
     ){}
     query = '';
     selectedTab: TabKey = 'all';
@@ -39,65 +33,70 @@ export class Directory {
     page = 1;
     pageSize = 10;
 
-    tutors: TutorRow[] = [
-        {
-        id: 1,
-        name: 'Roberto Alvarado',
-        email: 'roberto444@gmail.com',
-        phone: '+591 65859748',
-        students: ['Juana Alvarado Gomez', 'Lucas Alvarado Gomez', 'Lupita Alvarado Gomez'],
-        balance: 450,
-        },
-        {
-        id: 2,
-        name: 'María Salvatierra',
-        email: 'maria@gmail.com',
-        phone: '+591 71234567',
-        students: ['Matías Salvatierra'],
-        balance: 0,
-        },
-    ];
+    tutors: TutorListItem[]=[];
+    total= 0;
+    isLoading = false;
+    ngOnInit(): void {
+        this.loadTutors();
+    }
+    private tabToStatus(tab:TabKey): TutorStatusFilter{
+        if(tab === 'debt') return 'DEBT';
+        if(tab === 'ok') return 'OK';
+        return 'ALL';
+    }
+    loadTutors(): void {
+        this.isLoading = true;
 
-    get filteredTutors(): TutorRow[] {
-        const q = this.query.trim().toLowerCase();
+        this.tutorapi.list({
+            q: this.query?.trim() ?? '',
+            status: this.tabToStatus(this.selectedTab),
+            page: this.page,
+            pageSize: this.pageSize,
+        })
+        .pipe(finalize(() => (this.isLoading = false)))
+        .subscribe({
+            next: (res: TutorListResponse) => {
 
-        let list = this.tutors;
+            this.tutors = res.items.map((x: any) => ({
+                id: Number(x.id),
+                name: x.name,
+                email: x.email ?? '',
+                phone: x.phone ?? '',
+                students: x.students ?? [],
+                balance: Number(x.balance ?? 0),
+            }));
 
-        // tab filter
-        if (this.selectedTab === 'debt') list = list.filter(t => t.balance > 0);
-        if (this.selectedTab === 'ok') list = list.filter(t => t.balance <= 0);
+            this.total = res.total;
+            if (this.selectedTab === 'all') {
+                const debt = this.tutors.filter(t => t.balance < 0).length;
+                const ok = this.tutors.filter(t => t.balance >= 0).length;
 
-        // search filter
-        if (q) {
-        list = list.filter(t => {
-            const haystack = [
-            t.name,
-            t.email,
-            t.phone,
-            ...(t.students ?? []),
-            String(t.id),
-            ]
-            .join(' ')
-            .toLowerCase();
-
-            return haystack.includes(q);
+                this.counts = {
+                    all: this.total,
+                    debt,
+                    ok
+                };
+            }
+            },
+            error: () => {
+                this.toast.error('No se pudo cargar el directorio.');
+                this.tutors = [];
+                this.counts = { all: 0, debt: 0, ok: 0 };
+                this.total = 0;
+            },
+            complete: () => {
+                this.isLoading = false;
+                console.log(this.tutors);
+            }
         });
         }
 
-        return list;
+    get pagedTutors(): TutorListItem[]{
+        return this.tutors;
     }
 
     get totalPages(): number {
-        const total = this.filteredTutors.length;
-        return Math.max(1, Math.ceil(total / this.pageSize));
-    }
-
-    get pagedTutors(): TutorRow[] {
-        // clamp page
-        if (this.page > this.totalPages) this.page = this.totalPages;
-
-        const start = (this.page - 1) * this.pageSize;
-        return this.filteredTutors.slice(start, start + this.pageSize);
+        return Math.max(1, Math.ceil(this.total / this.pageSize));
     }
 
     get pageStart(): number {
@@ -105,23 +104,21 @@ export class Directory {
     }
 
     get pageEnd(): number {
-        return Math.min(this.pageStart + this.pageSize, this.filteredTutors.length);
+        return Math.min(this.pageStart + this.pageSize, this.total);
     }
 
-    get counts() {
-        const all = this.tutors.length;
-        const debt = this.tutors.filter(t => t.balance > 0).length;
-        const ok = this.tutors.filter(t => t.balance <= 0).length;
-        return { all, debt, ok };
-    }
+    counts = {all: 0, debt: 0, ok:0};
+
 
     setTab(tab: TabKey) {
         this.selectedTab = tab;
         this.page = 1;
+        this.loadTutors();
     }
 
     onQueryChange() {
         this.page = 1;
+        this.loadTutors();
     }
 
     nextPage() {
@@ -134,6 +131,7 @@ export class Directory {
     goToPage(p: number) {
         if (p < 1 || p > this.totalPages) return;
         this.page = p;
+        this.loadTutors();
     }
     get visiblePages(): (number | '...')[] {
         const pages: (number | '...')[] = [];
@@ -164,29 +162,46 @@ export class Directory {
         return pages;
     }
 
-    trackById = (_: number, item: TutorRow) => item.id;
+    trackById = (_: number, item: TutorListItem) => item.id;
     openModal = false;
     saving = false;
     mode: 'create' | 'edit' = 'create';
-    createValue: TutorRow |null = null;
+    createValue: TutorListItem |null = null;
     onNewTutor() {
         this.mode = 'create';
         this.openModal = true;
     }
-    onRegister(payload: any){
-        try {
-            this.saving = true;
-
-            this.openModal = false;
-            this.toast.success('Tutor registrado existosamente.');
-        } catch (error) {   
-            
-        }finally{
-            this.saving = false;
+    async onRegister(event: { mode: 'create' | 'edit'; payload: any }) {
+        this.saving = true;
+        if (event.mode !== 'create') {
+            await this.modal.alert({
+                title: 'Error',
+                message: 'Ocurrio un error inesperado, intente otra vez.',
+                tone: 'danger'
+            });
+            return;
         }
+
+        const req$ = this.tutorapi.create(event.payload);
+        
+        req$.subscribe({
+            next: () => {
+                this.toast.success('Tutor registrado exitosamente.');
+                this.openModal = false;
+                this.page = 1;
+                this.loadTutors();
+            },
+            error: (err) => {
+                this.openModal = false;
+                console.error(err);
+                this.toast.error('No se pudo guardar el tutor.');
+            },
+            complete: () => (this.saving = false),
+        });
     }
 
-    async onCharge(tutor: TutorRow) {
+
+    async onCharge(tutor: TutorListItem) {
         console.log('Cobrar a', tutor);
         const ok = await this.modal.confirm({
             title: 'Eliminar registro',

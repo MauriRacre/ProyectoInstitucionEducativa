@@ -6,7 +6,7 @@ import { SettingsComponent } from './feactures/settings/settings.page';
 
 export const routes: Routes = [
     { path: '', component: Directory},
-    { path: 'cobro-tutor', component: PayPage},
+    { path: 'cobro-tutor/:id', component: PayPage},
     { path: 'history', component: HistoryPage},
     { path: 'settings', component: SettingsComponent}
 ];

@@ -147,9 +147,9 @@
 
                                 <span
                                     class="w-fit rounded-xl px-2.5 py-1 text-xs font-semibold"
-                                    [ngClass]="t.balance > 0 ? 'bg-red-50 text-rojo border border-red-100' : 'bg-emerald-50 text-verde border border-emerald-100'"
+                                    [ngClass]="t.balance < 0 ? 'bg-red-50 text-rojo border border-red-100' : 'bg-emerald-50 text-verde border border-emerald-100'"
                                 >
-                                    {{ t.balance > 0 ? 'Con deuda' : 'Al día' }}
+                                    {{ t.balance < 0 ? 'Con deuda' : 'Al día' }}
                                 </span>
                             </div>
                         </td>
@@ -158,7 +158,7 @@
                             <div class="flex justify-end gap-2">
                                 <button
                                     type="button"
-                                    [routerLink]="['/cobro-tutor']"
+                                    [routerLink]="['/cobro-tutor', t.id]"
                                     class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-blue-100 focus:outline-none"
                                     title="Registrar cobro"
                                 >
@@ -191,7 +191,7 @@
                     –
                     <span class="font-semibold text-gray-900">{{ pageEnd }}</span>
                     de
-                    <span class="font-semibold text-gray-900">{{ filteredTutors.length }}</span>
+                    <span class="font-semibold text-gray-900">{{ total }}</span>
                 </div>
                 <nav class="flex items-center gap-1" aria-label="Pagination">
 

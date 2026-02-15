@@ -6,8 +6,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-module.exports = app;
-
 const tutorRoutes = require('./routes/tutor.routes');
 app.use('/api/tutores', tutorRoutes);
 
@@ -29,5 +27,4 @@ app.use("/api/payments", require("./routes/payments.routes"));
 app.use("/api", require("./routes/movements.routes"));
 
 app.use("/api/transactions", require("./routes/transactions.routes"));
-
-
+module.exports = app;

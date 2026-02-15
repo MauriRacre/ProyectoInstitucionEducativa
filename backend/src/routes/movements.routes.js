@@ -41,8 +41,8 @@ router.post("/payment-concepts/:conceptId/movements", async (req, res) => {
     const [[sum]] = await pool.query(
       `SELECT 
           COALESCE(SUM(monto + descuento),0) AS total
-       FROM pagos
-       WHERE mensualidad_id = ?`,
+        FROM pagos
+        WHERE mensualidad_id = ?`,
       [conceptId]
     );
 
@@ -62,7 +62,7 @@ router.post("/payment-concepts/:conceptId/movements", async (req, res) => {
     const [result] = await pool.query(
       `INSERT INTO pagos 
         (mensualidad_id, fecha, monto, descuento, nota, responsable)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+        VALUES (?, ?, ?, ?, ?, ?)`,
       [conceptId, fecha, paid, discount, note, responsible]
     );
 
@@ -91,8 +91,6 @@ router.post("/payment-concepts/:conceptId/movements", async (req, res) => {
     } catch (mailError) {
       console.error("Error enviando correo:", mailError.message);
     }
-
-
 
     const newPending = await updateEstadoMensualidad(conceptId);
 

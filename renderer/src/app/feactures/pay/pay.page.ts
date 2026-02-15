@@ -1,10 +1,14 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ModalService } from '../../core/swal/swal.service';
 import { ToastService } from '../../core/toast/toast.service';
 import { ModalAbono, DestinoPago } from '../../components/abono/modalAbono';
 import { ModalRegister, Mode, Parent } from '../../components/register/modalRegister';
+import { ActivatedRoute } from '@angular/router';
+import { TutorApiService } from '../../core/services/tutor.service';
+import { CategoryService, CategoryDTO, CategoryType } from '../../core/services/categoria.service';
+
 type Parallel = 'A' | 'B' | 'C';
 type Grade = 'Kinder' | 'Pre-Kinder' | '1er' | '2do' | '3ro' | '4to' | '5to' | '6to';
 
@@ -24,12 +28,15 @@ interface Child {
 
 interface PaymentHistoryItem {
   id: number;
-  dateISO: string;        
-  conceptLabel: string;   
-  paid: number;           
-  discount: number;   
-  appliedTotal: number;    
-  note?: string;
+  dateISO: string;
+  conceptLabel: string;
+  paid: number;
+  discount: number;
+  appliedTotal: number;
+  note?: string | null;
+  staff?: string | null;
+  movementId?: number | null;
+  reversed?: boolean;     
   reverted?: boolean;
 }
 
@@ -41,6 +48,35 @@ interface PaymentConcept {
   pending: number;      
   history?: PaymentHistoryItem[];
 }
+interface PayViewApi {
+  tutor: { id: number; name: string; phone: string; email: string };
+  children: Array<{ id: number; name: string; grade: Grade; parallel: Parallel }>;
+  paymentsByChild: Record<
+    string,
+    Array<{
+      id: number;
+      studentId: number;
+      categoryId: string;
+      concept: string;
+      period?: { year: number; month: string | number };
+      amountTotal: string | null;
+      pending: number | string;
+      history: Array<{
+        id: number;
+        dateISO: string;
+        type: string;
+        conceptLabel: string;
+        paid: string | number;
+        discount: string | number;
+        appliedTotal: string | number;
+        note: string | null;
+        staff: string | null;
+        movementId: number | null;
+        reversed: boolean;
+      }>;
+    }>
+  >;
+}
 
 @Component({
     selector: 'app-pay-page',
@@ -49,86 +85,156 @@ interface PaymentConcept {
     ],
     templateUrl: './pay.page.html'
 })
-export class PayPage {
+export class PayPage implements OnInit{
   constructor(
     private modal: ModalService,
-    private toast: ToastService
+    private toast: ToastService,
+    private route: ActivatedRoute,
+    private tutorapi: TutorApiService,
+    private categoryapi: CategoryService
   ) {}
 
-  tutor: Tutor = {
-    id: 1,
-    name: 'Roberto Alvarado',
-    phone: '+591 65859748',
-    email: 'roberto444@gmail.com',
-  };
-
-  children: Child[] = [
-    { id: 101, name: 'Juana Alvarado Gomez', grade: '3ro', parallel: 'A' },
-    { id: 102, name: 'Lucas Alvarado Gomez', grade: '1er', parallel: 'B' },
-  ];
-
-  paymentsByChild: Record<number, PaymentConcept[]> = {
-    101: [
-      {
-        id: 1001,
-        childId: 101,
-        concept: 'Mensualidad Febrero',
-        amountTotal: 450,
-        pending: 150, // ya pagó 300
-        history: [
-          { id: 1, dateISO: '2026-02-16', conceptLabel: 'Mensualidad Febrero', paid: 200, discount: 10, appliedTotal: 0 },
-          { id: 2, dateISO: '2026-02-01', conceptLabel: 'Mensualidad Febrero', paid: 110, discount: 0, appliedTotal: 0 },
-        ],
-      },
-      {
-        id: 1002,
-        childId: 101,
-        concept: 'Materiales',
-        amountTotal: 120,
-        pending: 60,
-        history: [{ id: 3, dateISO: '2026-01-25', conceptLabel: 'Materiales', paid: 60, discount: 0, appliedTotal: 0 }],
-      },
-    ],
-    102: [
-      {
-        id: 2001,
-        childId: 102,
-        concept: 'Mensualidad Febrero',
-        amountTotal: 450,
-        pending: 450,
-        history: [],
-      },
-      {
-        id: 2002,
-        childId: 102,
-        concept: 'Transporte',
-        amountTotal: 80,
-        pending: 0,
-        history: [{ id: 4, dateISO: '2026-02-03', conceptLabel: 'Transporte', paid: 80, discount: 0, appliedTotal: 0 }],
-      },
-    ],
-  };
-
-  
+  isLoading = false;
+  apiErrorMsg='';
+  tutor: Tutor = {id:0, name:'', phone:'', email:''};
+  children: Child[]=[];
+  paymentsByChild: Record<number, PaymentConcept[]>={};
   selectedIds = new Set<number>();
+  draftDiscount: Partial<Record<number, number>>={};
+  draftPay: Partial<Record<number, number>>={};
 
-  draftDiscount: Partial<Record<number, number>> = {};
-  draftPay: Partial<Record<number, number>> = {};
-
-  
   historyOpen = new Set<number>();
-
- 
   pageSize = 6;
-  childPage: Record<number, number> = {};
+  childPage: Record<number, number>={};
+  idTutor = 0;
+  ngOnInit(): void {
+    this.route.paramMap.subscribe(params => {
+      const id = Number(params.get('id'));
+      if (!id) return;
+      this.idTutor = id;
+      this.fetchPayView(id);
+        this.fetchCategorias();
+    });
+  }
 
+  private fetchPayView(tutorId:number){
+    this.isLoading = true;
+    this.apiErrorMsg = '';
+    const year = 2026;
+    const includeHistory = true;
+    this.tutorapi.getPayView(tutorId, year, includeHistory).subscribe({
+      next:(res:any) => {
+        const api = res as PayViewApi;
+        this.tutor = {
+          id: Number(api.tutor?.id ?? 0),
+          name: api.tutor?.name ?? '',
+          phone: api.tutor?.phone ?? '',
+          email: api.tutor?.email ?? '',
+        };
+        this.children = (api.children ?? []).map(c=>({
+          id: Number(c.id),
+          name: c.name,
+          grade:c.grade,
+          parallel: c.parallel,
+        }));
+        const mapped : Record<number, PaymentConcept[]>={};
+        const rawMap = api.paymentsByChild ?? {};
+        for(const [childIdStr, list] of Object.entries(rawMap)){
+          const childId = Number(childIdStr);
+          mapped[childId]= (list ?? []).map(p=>{
+            const history = (p.history ?? []).map(h => ({
+              id: Number(h.id),
+              dateISO: h.dateISO,
+              conceptLabel: h.conceptLabel,
+              paid: this.money(h.paid),
+              discount: this.money(h.discount),
+              appliedTotal: this.money(h.appliedTotal),
+              note: h.note,
+              staff: h.staff,
+              movementId: h.movementId,
+              reversed: !!h.reversed,
+              reverted: !!h.reversed,
+            }));
+            const pendingNorm = this.normalizePending(p.pending);
+
+            const paidPlusDiscount = history.reduce(
+              (acc, x) => acc + (x.paid ?? 0) + (x.discount ?? 0),
+              0
+            );
+
+            const amountTotalNorm =
+              p.amountTotal != null
+                ? this.money(p.amountTotal)
+                : this.round2(paidPlusDiscount + pendingNorm);
+
+            return {
+              id: Number(p.id),
+              childId: Number(p.studentId ?? childId),
+              concept: p.concept ?? '',
+              amountTotal: amountTotalNorm,
+              pending: pendingNorm,
+              history,
+            };
+          });
+          if(!this.childPage[childId]) this.childPage[childId] = 1;
+        }
+        this.paymentsByChild = mapped;
+        this.selectedIds.clear();
+        this.draftDiscount = {};
+        this.draftPay = {};
+        this.historyOpen.clear();
+      },
+      error: (err) => {
+        console.error(err);
+        this.apiErrorMsg = 'No se pudo cargar la vista de cobro.';
+        this.toast.error(this.apiErrorMsg);
+
+        this.tutor = { id: 0, name: '', phone: '', email: '' };
+        this.children = [];
+        this.paymentsByChild = {};
+      },
+      complete: () => {
+        this.isLoading = false;
+      },
+    });
+  }
+    
+  private normalizePending(v: number | string): number {
+    const n = this.money(v);
+    if (!Number.isFinite(n)) return 0;
+    return this.round2(Math.max(0, Math.abs(n)));
+  }
+
+  private money(v: any): number {
+    if (v == null) return 0;
+    if (typeof v === 'number') return this.round2(v);
+
+    const s = String(v).trim();
+    const cleaned = s.replace(/[^\d.,-]/g, '');
+
+    const parts = cleaned.split('.');
+    let normalized = cleaned;
+    if (parts.length > 2) {
+      const last = parts.pop()!;
+      normalized = parts.join('') + '.' + last;
+    }
+
+    normalized = normalized.replace(',', '.');
+
+    const n = Number(normalized);
+    return Number.isFinite(n) ? this.round2(n) : 0;
+  }
+
+  private round2(n: number) {
+    return Math.round(n * 100) / 100;
+  }
   // ------------------ UI helpers ------------------
   trackByChildId = (_: number, c: Child) => c.id;
   trackByPaymentId = (_: number, p: PaymentConcept) => p.id;
   trackByHistoryId = (_: number, h: PaymentHistoryItem) => h.id;
 
   formatDate(dateISO: string): string {
-    const d = new Date(dateISO + 'T00:00:00');
+    const d = new Date(dateISO);
     return d.toLocaleDateString('es-BO', { day: '2-digit', month: 'long' });
   }
 
@@ -245,7 +351,7 @@ export class PayPage {
   }
 
   setDiscount(id: number, raw: any) {
-    const v = this.toMoney(raw);
+    const v = this.money(raw);
     this.draftDiscount[id] = Math.max(0, v);
 
     const p = this.findPayment(id);
@@ -257,7 +363,7 @@ export class PayPage {
   }
 
   setPay(id: number, raw: any) {
-    const v = this.toMoney(raw);
+    const v = this.money(raw);
     const p = this.findPayment(id);
     if (!p) return;
 
@@ -267,12 +373,6 @@ export class PayPage {
   maxPayFor(p: PaymentConcept): number {
     const disc = Math.max(0, this.draftDiscount[p.id] ?? 0);
     return Math.max(0, p.pending - disc);
-  }
-
-  private toMoney(v: any): number {
-    const n = Number(v);
-    if (!Number.isFinite(n)) return 0;
-    return Math.round(n * 100) / 100;
   }
 
   private findPayment(id: number): PaymentConcept | null {
@@ -309,7 +409,6 @@ export class PayPage {
       toCharge += Math.max(0, this.draftPay[p.id] ?? 0);
     }
 
-    // clamp
     toCharge = Math.min(toCharge, Math.max(0, selectedPending - discounts));
 
     return {
@@ -319,10 +418,6 @@ export class PayPage {
       discounts: this.round2(discounts),
       toCharge: this.round2(toCharge),
     };
-  }
-
-  private round2(n: number) {
-    return Math.round(n * 100) / 100;
   }
 
   // ------------------ Actions ------------------
@@ -410,6 +505,16 @@ export class PayPage {
     this.toast.success('Último movimiento revertido');
   }
   /** Modal Abono */
+  get studentNames(): string[] {
+    return this.children.map(c => c.name);
+  }
+  categorias: string[] = [];
+
+  private fetchCategorias() {
+    this.categoryapi.getAll().subscribe(res => {
+      this.categorias = res.map(c => c.name);
+    });
+  }
   showModalAbono = false; 
   openModalAbono(){
     this.showModalAbono = true;
@@ -427,27 +532,61 @@ export class PayPage {
     this.toast.success('Abono guardado correctamente');
     this.closeModalAbono();
   }
+  
   /** ModalEdit */
   showModalEdit = false;
   mode: 'create' | 'edit' = 'edit';
   editValue: Parent | null = null;
   openModalEdit(){
     this.mode = 'edit';
-    this.editValue = null;
+    this.editValue = {
+      parent: {
+        name: this.tutor?.name ?? '',
+        email: this.tutor?.email ?? '',
+        phone: this.tutor?.phone ?? '',
+      },
+      students: (this.children ?? []).map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        grade: c.grade,
+        parallel: c.parallel,
+      })),
+    };
     this.showModalEdit = true;
   }
+
+  loadingEdit = false;
   closeModalEdit(){
+    if(this.loadingEdit) return;
     this.showModalEdit = false;
   }
-  onSavedEdit(event: {mode: Mode, payload: Parent}):void{
-    this.showModalEdit = false;
-    const { mode, payload } = event;
-
-    if (mode === 'edit') {
-      // update
-    } else {
-      // create
+  async onSavedEdit(event: {mode: Mode, payload: Parent}){
+    if (event.mode !== 'edit') {
+      await this.modal.alert({
+        title: 'Error',
+        message: 'Ocurrio un error inesperado, intente otra vez.',
+        tone: 'danger'
+      });
+      return;
     }
+    this.loadingEdit = true;
+    this.tutorapi.update(this.idTutor, event.payload).subscribe({
+      next: () => {
+        this.toast.success('Registro actualizado exitosamente.');
+        this.loadingEdit = false;
+        this.showModalEdit = false;
+        this.fetchPayView(this.idTutor);
+      },
+      error: async (err) => {
+        console.error(err);
+        this.loadingEdit = false;
 
+        await this.modal.alert({
+          title: 'Error',
+          message: 'No se pudo actualizar el registro.',
+          tone: 'danger'
+        });
+      }
+    });
   }
 }

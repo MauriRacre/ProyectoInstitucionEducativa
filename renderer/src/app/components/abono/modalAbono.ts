@@ -11,6 +11,8 @@ export type DestinoPago = 'PAGAR_AHORA' | 'AGREGAR_DEUDA';
 })
 export class ModalAbono {
   @Input() open = false;
+  @Input() estudiantes: string[] = [];
+  @Input() categorias : string[] = [];
   @Output() closed = new EventEmitter<void>();
   @Output() saved = new EventEmitter<any>();
 
@@ -18,9 +20,6 @@ export class ModalAbono {
   errorMsg = '';
 
   form!: FormGroup;
-
-  estudiantes: string[] = ['Juan Pérez', 'María Gómez', 'Carlos Rojas'];
-  categorias: string[] = ['Inscripción', 'Mensualidad', 'Materiales', 'Multa'];
 
   meses: string[] = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -128,9 +127,9 @@ export class ModalAbono {
     this.form.reset({
       estudiante: '',
       categoria: '',
-      meses: [],          // ✅ reset correcto
+      meses: [],          
       monto: 0,
-      descuento: 0,       // ✅ no olvides
+      descuento: 0,       
       destino: 'PAGAR_AHORA',
     });
 

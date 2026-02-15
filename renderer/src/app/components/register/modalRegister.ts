@@ -13,6 +13,7 @@ export interface Parent{
         phone: string;
     };
     students: Array<{
+        id?: number;
         name: string;
         grade: Grade;
         parallel: Parallel;
@@ -71,6 +72,7 @@ export class ModalRegister {
 
   private createStudentGroup(seed?: Partial<Parent['students'][number]>): FormGroup {
     return this.fb.group({
+      id:[seed?.id ?? null],
       name: [seed?.name ?? '', [Validators.required, Validators.minLength(5), Validators.maxLength(80)]],
       grade: [((seed?.grade ?? '1er') as Grade), [Validators.required]],
       parallel: [((seed?.parallel ?? 'A') as Parallel), [Validators.required]],
@@ -97,12 +99,9 @@ export class ModalRegister {
       },
     });
 
-    // students (reconstruir FormArray)
     this.clearStudents();
     const arr = (v.students ?? []).length ? v.students : [{ name: '', grade: '1er', parallel: 'A' } as any];
     for (const s of arr) this.students.push(this.createStudentGroup(s));
-
-    // estado
     this.form.markAsPristine();
     this.form.markAsUntouched();
   }
@@ -177,12 +176,14 @@ export class ModalRegister {
         phone: this.form.value.parent!.phone!.trim(),
       },
       students: (this.form.value.students ?? []).map((s: any) => ({
+        id: s.id,
         name: (s.name ?? '').trim(),
         grade: s.grade,
         parallel: s.parallel,
       })),
+      
     };
-
+    console.log(payload);
     this.submitForm.emit({mode: this.mode, payload});
   }
 
