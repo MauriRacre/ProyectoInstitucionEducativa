@@ -140,5 +140,101 @@ router.post('/', async (req, res) => {
     res.status(500).json({ ok: false });
   }
 });
+router.get("/nomina/courses", async(req, res)=>{
+  try {
+    const [rows] = await pool.query(`
+      SELECT 
+        e.grado AS grade,
+        e.paralelo AS parallel,
+        COUNT(*) AS count
+      FROM estudiantes e
+      GROUP BY e.grado, e.paralelo
+      ORDER BY e.grado ASC, e.paralelo ASC
+    `);
+
+    res.json(rows);
+
+  } catch (error) {
+    console.error(error);
+    apiError(res, "BUSINESS_RULE", "Error obteniendo cursos");
+  }
+});
+router.get("/nomina", async (req, res) => {
+  try {
+    const grade = String(req.query.grade || '');
+    const parallel = String(req.query.parallel || '');
+    const q = String(req.query.q || '');
+    const page = Number(req.query.page) || 1;
+    const pageSize = Number(req.query.pageSize) || 10;
+
+    if (!grade || !parallel) {
+      return apiError(res, "VALIDATION_ERROR", "grade y parallel son requeridos");
+    }
+
+    const offset = (page - 1) * pageSize;
+    const search = `%${q}%`;
+
+    let whereSearch = "";
+    let searchParams = [];
+
+    if (q.trim() !== "") {
+      whereSearch = `
+        AND (
+          e.nombre LIKE ?
+          OR t.nombre LIKE ?
+          OR t.telefono LIKE ?
+          OR t.correo LIKE ?
+        )
+      `;
+      searchParams = [search, search, search, search];
+    }
+
+    // COUNT
+    const [countRows] = await pool.query(
+      `
+      SELECT COUNT(*) AS total
+      FROM estudiantes e
+      JOIN tutores t ON t.id = e.tutor_id
+      WHERE e.grado = ?
+        AND e.paralelo = ?
+        ${whereSearch}
+      `,
+      [grade, parallel, ...searchParams]
+    );
+
+    const total = countRows[0]?.total ?? 0;
+
+    // DATA
+    const [rows] = await pool.query(
+      `
+      SELECT 
+        e.id,
+        e.nombre AS name,
+        t.nombre AS tutorName,
+        t.telefono AS tutorPhone,
+        t.correo AS tutorEmail,
+        e.grado AS grade,
+        e.paralelo AS parallel
+      FROM estudiantes e
+      JOIN tutores t ON t.id = e.tutor_id
+      WHERE e.grado = ?
+        AND e.paralelo = ?
+        ${whereSearch}
+      ORDER BY e.nombre ASC
+      LIMIT ? OFFSET ?
+      `,
+      [grade, parallel, ...searchParams, pageSize, offset]
+    );
+
+    return res.json({
+      items: rows,
+      total
+    });
+
+  } catch (error) {
+    console.error("ERROR EN /nomina:", error);
+    return apiError(res, "BUSINESS_RULE", "Error obteniendo estudiantes");
+  }
+});
 
 module.exports = router;

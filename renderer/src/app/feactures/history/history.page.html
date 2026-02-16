@@ -208,7 +208,7 @@
                 </td>
               </tr>
 
-              <tr *ngIf="filtered.length === 0">
+              <tr *ngIf="transacciones.length === 0">
                 <td colspan="7" class="px-5 py-12 text-center">
                   <div class="text-sm font-semibold text-gray-900">No se encontraron resultados</div>
                   <div class="mt-1 text-sm text-gray-500">Prueba cambiar filtros o búsqueda.</div>
@@ -226,7 +226,7 @@
             –
             <span class="font-semibold text-gray-900">{{ pageEnd }}</span>
             de
-            <span class="font-semibold text-gray-900">{{ filtered.length }}</span>
+            <span class="font-semibold text-gray-900">{{ totalFromApi }}</span>
           </div>
 
           <nav class="flex items-center gap-1" aria-label="Pagination">
@@ -350,17 +350,17 @@
             </div>
 
             <div class="divide-y divide-gray-100">
-              <div *ngFor="let g of nominaGrades">
+              <div *ngFor="let group of nominaGroupedCourses">
                 <!-- Grade row -->
                 <button
                   type="button"
-                  (click)="toggleNominaGrade(g)"
+                  (click)="toggleNominaGrade(group.grade)"
                   class="w-full text-left px-4 py-4 hover:bg-gray-50 flex items-center justify-between"
                 >
-                  <div class="font-semibold text-gray-900">{{ g }}</div>
+                  <div class="font-semibold text-gray-900">{{group.grade}}</div>
                   <span class="text-gray-400">
                     <svg
-                      *ngIf="nominaOpenGrade === g; else chevronRight"
+                      *ngIf="nominaOpenGrade === group.grade  ; else chevronRight"
                       xmlns="http://www.w3.org/2000/svg"
                       viewBox="0 0 640 640"
                       class="w-4 h-4"
@@ -385,26 +385,30 @@
                 </button>
 
                 <!-- Courses under grade -->
-                <div *ngIf="nominaOpenGrade === g" class="px-3 pb-3">
+                <div *ngIf="nominaOpenGrade === group.grade" class="px-3 pb-3">
                   <div class="grid grid-cols-1 gap-2">
                     <button
                       type="button"
-                      *ngFor="let p of nominaParallels"
-                      (click)="selectCourse(g, p)"
+                      *ngFor="let p of group.courses"
+                      (click)="selectCourse(p.grade, p.parallel)"
                       class="px-3 py-2 rounded-xl border text-sm font-semibold flex items-center justify-between"
-                      [ngClass]="nominaCourseKey === (g + ' ' + p)
+                      [ngClass]=" 
+                        nominaSelectedCourse?.grade === p.grade &&
+                        nominaSelectedCourse?.parallel === p.parallel
                         ? 'bg-blue-50 border-celeste text-azul'
                         : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'"
                     >
-                      <span>{{ g }} {{ p }}</span>
+                      <span>{{ p.grade }} {{ p.parallel }}</span>
 
                       <span
                         class="text-xs px-2 py-1 rounded-full border"
-                        [ngClass]="nominaCourseKey === (g + ' ' + p)
+                        [ngClass]="
+                          nominaSelectedCourse?.grade === p.grade &&
+                          nominaSelectedCourse?.parallel === p.parallel
                           ? 'bg-white/60 border-blue-200'
                           : 'bg-gray-50 border-gray-200'"
                       >
-                        {{ nominaCountByCourse[g + ' ' + p] || 0 }}
+                        {{p.count}}
                       </span>
                     </button>
                   </div>
@@ -453,7 +457,7 @@
                 </thead>
 
                 <tbody class="divide-y divide-gray-100">
-                  <tr *ngFor="let s of nominaPaged; let i = index" class="hover:bg-gray-50">
+                  <tr *ngFor="let s of nominaStudents; let i = index" class="hover:bg-gray-50">
                     <td class="px-4 py-3 text-gray-500 font-semibold">
                       {{ (nominaPage - 1) * nominaPageSize + i + 1 }}
                     </td>
@@ -467,7 +471,7 @@
                     </td>
                   </tr>
 
-                  <tr *ngIf="nominaPaged.length === 0">
+                  <tr *ngIf="nominaStudents.length === 0">
                     <td colspan="5" class="px-4 py-10 text-center text-gray-500">
                       No hay alumnos en {{ nominaCourseKey }}.
                     </td>

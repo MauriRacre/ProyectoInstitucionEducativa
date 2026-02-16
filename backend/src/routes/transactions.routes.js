@@ -60,6 +60,7 @@ router.get("/search", async (req, res) => {
       responsible = "",
       tutor = "",
       type = "ALL",
+      concept= "",
       from,
       to,
       page = 1,
@@ -106,6 +107,10 @@ router.get("/search", async (req, res) => {
         where += "AND (p.monto > 0 AND p.reversed = 0) ";
       }
     }
+    if (concept) {
+      where += "AND CONCAT('Mensualidad ', m.mes, ' ', m.anio) = ? ";
+      params.push(concept);
+    }
 
     // total
     const [[{ total }]] = await pool.query(
@@ -121,24 +126,29 @@ router.get("/search", async (req, res) => {
     // data
     const [rows] = await pool.query(
       `SELECT 
-          p.id,
-          p.fecha,
-          p.responsable,
-          t.nombre as tutor,
-          e.nombre as student,
-          CASE 
-            WHEN p.reversed = 1 OR p.monto < 0 THEN 'REVERSAL'
-            WHEN p.monto = 0 AND p.descuento > 0 THEN 'DISCOUNT'
-            ELSE 'PAYMENT'
-          END AS type,
-          (p.monto + p.descuento) as amount
-       FROM pagos p
-       JOIN mensualidades m ON m.id = p.mensualidad_id
-       JOIN estudiantes e ON e.id = m.estudiante_id
-       JOIN tutores t ON t.id = e.tutor_id
-       ${where}
-       ORDER BY p.id DESC
-       LIMIT ? OFFSET ?`,
+        p.id,
+        p.fecha,
+        TIME(p.fecha) AS time,
+        p.responsable as staff,
+        t.nombre as tutor,
+        e.nombre as student,
+        e.grado as grade,
+        e.paralelo as parallel,
+        CONCAT('Mensualidad ', m.mes, ' ', m.anio) AS concept,
+        p.nota as note,
+        CASE 
+          WHEN p.reversed = 1 OR p.monto < 0 THEN 'REVERSAL'
+          WHEN p.monto = 0 AND p.descuento > 0 THEN 'DISCOUNT'
+          ELSE 'PAYMENT'
+        END AS type,
+        (p.monto + p.descuento) as amount
+        FROM pagos p
+        JOIN mensualidades m ON m.id = p.mensualidad_id
+        JOIN estudiantes e ON e.id = m.estudiante_id
+        JOIN tutores t ON t.id = e.tutor_id
+        ${where}
+        ORDER BY p.id DESC
+        LIMIT ? OFFSET ?`,
       [...params, Number(pageSize), Number(offset)]
     );
 
@@ -155,5 +165,21 @@ router.get("/search", async (req, res) => {
   }
 });
 
+router.get("/concepts", async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT DISTINCT 
+        CONCAT('Mensualidad ', m.mes, ' ', m.anio) AS concept
+      FROM pagos p
+      JOIN mensualidades m ON m.id = p.mensualidad_id
+      ORDER BY concept ASC
+    `);
+
+    res.json(rows.map(r => r.concept));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error obteniendo conceptos" });
+  }
+});
 
 module.exports = router;

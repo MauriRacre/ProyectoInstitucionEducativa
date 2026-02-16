@@ -11,6 +11,15 @@ export interface Student {
     grade: string;
     parallel: string;
 }
+export interface StudentRow {
+    id: number;
+    name: string;
+    tutorName: string;
+    tutorPhone: string;
+    tutorEmail: string;
+    grade: string;
+    parallel: string;
+}
 
 export interface PaymentHistory {
     id: number;
@@ -101,6 +110,24 @@ export class StudentService {
         return this.http.post<{ ok: boolean; id: number }>(
         this.baseUrl,
         student
+        );
+    }
+    // ===============================
+    // GET /Nomina de cursos
+    // ===============================
+    getNominaCourses(): Observable<any[]>{
+        return this.http.get<any[]>(`${this.baseUrl}/nomina/courses`);
+    }
+    getNominaStudents(params:{
+        grade:string;
+        parallel: string;
+        q?: string;
+        page: number;
+        pageSize: number;
+    }): Observable<{items: StudentRow[]; total: number}>{
+        return this.http.get<{items: StudentRow[]; total: number}>(
+            `${this.baseUrl}/nomina`,
+            {params}
         );
     }
 }

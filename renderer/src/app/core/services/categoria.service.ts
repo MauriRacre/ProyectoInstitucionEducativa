@@ -6,7 +6,7 @@ import { map } from "rxjs/operators";
 
 export type CategoryType = 'MONTHLY' | 'SERVICE' | 'FEE' | 'FINE' | 'OTHER';
 export interface CategoryDTO {
-    id: number | string;
+    id: number ;
     name: string;        
     type: CategoryType;
     active: boolean;
@@ -33,5 +33,31 @@ export class CategoryService{
     getAllTwo():Observable<CategoryDTO[]>{
         return this.http.get<CategoryDTO[]>(this.baseUrl2);
     }
-    
+    /**GET by Id */
+    getById(id: number): Observable<CategoryDTO>{
+        return this.http.get<CategoryDTO>(`${this.baseUrl2}/${id}`);
+    }
+    /**CREATE */
+    create(payload:{
+        name: string;
+        type: string;
+        active?: boolean;
+    }): Observable<any>{
+        return this.http.post<any>(
+            this.baseUrl2,
+            payload
+        );
+    }
+    /**UPDATE */
+    update(id:number, payload:{
+        name:string;
+        type:string;
+        active?: boolean;
+    }):Observable<any>{
+        return this.http.put<any>(`${this.baseUrl2}/${id}`,payload);
+    }
+    /**DELETE */
+    delete(id:number):Observable<any>{
+        return this.http.delete<any>(`${this.baseUrl2}/${id}`);
+    }
 }

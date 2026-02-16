@@ -196,7 +196,7 @@
             <div class="flex justify-between items-center">
                 <h2 class="text-lg text-gray-900 font-semibold">Cursos</h2>
                 <button
-                    (click)="onCreate()"
+                    (click)="createCourse()"
                     class="inline-flex items-center gap-2 rounded-xl bg-celeste px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-azul"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" class="h-5 w-5">
@@ -212,22 +212,31 @@
                         <thead class="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-600">
                             <tr>
                                 <th class="px-5 py-3">#</th>
-                                <th class="px-5 py-3">Grado</th>
-                                <th class="px-5 py-3">Paralelo</th>
+                                <th class="px-5 py-3">Nombre</th>
+                                <th class="px-5 py-3">Tipo</th>
+                                <th class="px-5 py-3">Activo</th>
                                 <th class="px-5 py-3 text-right">Acciones</th>
                             </tr>
                         </thead>
 
                         <tbody class="divide-y divide-gray-100">
-                            <tr *ngFor="let c of filteredCourses(); trackBy: trackById" class="hover:bg-gray-50/70">
+                            <tr *ngFor="let c of courses" class="hover:bg-gray-50/70">
                                 <td class="px-5 py-4">{{c.id}}</td>
-                                <td class="px-5 py-4">{{c.grado}}</td>
-                                <td class="px-5 py-4">{{c.parallel}}</td>
+                                <td class="px-5 py-4">{{c.name}}</td>
+                                <td class="px-5 py-4">{{c.type}}</td>
+                                <td class="px-5 py-4">
+                                    <span
+                                        class="w-fit rounded-xl px-2.5 py-1 text-xs font-semibold"
+                                        [ngClass]="c.active ? 'bg-emerald-50 text-verde border border-emerald-100': 'bg-red-50 text-rojo border border-red-100'"
+                                    >
+                                        {{ c.active ? 'Activo' : 'Inactivo' }}
+                                    </span>
+                                </td>
                                 <td class="px-5 py-4 text-right">
                                     <div class="inline-flex gap-2">
                                         <button 
                                             type="button"
-                                            (click)="onDelete(c)"
+                                            (click)="deleteCourse(c.id)"
                                             class="border-rojo border rounded-xl p-2 text-rojo hover:bg-rojo hover:text-white"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" class="w-5" fill="currentColor">
@@ -236,7 +245,7 @@
                                         </button>
                                         <button
                                             type="button"
-                                            (click)="onEdit(c)"
+                                            (click)="editCourse(c)"
                                             class="border-gray-900 border text-gray-900 p-2 rounded-xl hover:bg-gray-400 hover:text-white hover:border-gray-400"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" class="w-5" fill="currentColor">
@@ -246,7 +255,7 @@
                                     </div>
                                 </td>
                             </tr>
-                            <tr *ngIf="filteredCourses().length === 0">
+                            <tr *ngIf="courses.length === 0">
                                 <td colspan="7" class="px-5 py-12 text-center">
                                 <div class="text-sm font-semibold text-gray-900">No se encontraron resultados</div>
                                 <div class="mt-1 text-sm text-gray-500">Prueba cambiar filtros o búsqueda.</div>
@@ -259,3 +268,10 @@
         </div>
     </div>
 </div>
+<app-modal-course
+    [open]="openModalCurso"
+    [mode]="mode"
+    [value]="selected"
+    (close)="openModalCurso = false"
+    (submitForm)="onSubmitCourse($event)"
+></app-modal-course>

@@ -1,6 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, signal } from '@angular/core';
+import { afterNextRender, Component, computed, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { CategoryService, CategoryDTO } from '../../core/services/categoria.service';
+import { ModalService } from '../../core/swal/swal.service';
+import { ToastService } from '../../core/toast/toast.service';
+import { ModalCourseComponent } from '../../components/course/modalCourse';
+import { finalize } from 'rxjs';
 
 type TabKey = 'eventos' | 'cursos' | 'usuarios';
 
@@ -9,7 +14,7 @@ interface UserRow {
   nombre: string;
   usuario: string;
   email: string;
-  ping: number; // ms o valor que manejes
+  ping: number; 
 }
 
 interface EventRow {
@@ -19,19 +24,42 @@ interface EventRow {
   destino: string;
 }
 
-interface CourseRow {
-  id: number;
-  grado: string;
-  parallel: string;
-}
-
 @Component({
   selector: 'app-settings-page',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ModalCourseComponent],
   templateUrl: './settings.page.html',
 })
-export class SettingsComponent {
+export class SettingsComponent implements OnInit{
+  constructor(
+    private  categoriaService: CategoryService,
+    private modal: ModalService,
+    private toast: ToastService
+  ){}
+  courses: CategoryDTO[] = [];
+  ngOnInit() {
+    this.loadCourses();
+  }
+  loadCourses(){
+    
+    this.categoriaService.getAllTwo()
+      .subscribe({
+        next: (res) => {
+          this.courses = res.map(x => ({
+            id : x.id,
+            name: x.name,
+            type: x.type,
+            active: x.active,
+          }));
+        },
+        error: (err) => {
+          console.error(err);
+        },
+        complete: () => {
+          console.log(this.courses);
+        }
+      });
+  }
   /* Tabs */
   readonly selectedTab = signal<TabKey>('usuarios');
   setTab(tab: TabKey) {
@@ -52,10 +80,6 @@ export class SettingsComponent {
     { id: 2, nombre: 'Graduación', concepto: 'Ticket', destino: 'Banco' },
   ]);
 
-  readonly courses = signal<CourseRow[]>([
-    { id: 1, grado: '1er', parallel: 'A' },
-    { id: 2, grado: '2do', parallel: 'B' },
-  ]);
 
   // ===== Helpers =====
   private normalize(input: unknown): string {
@@ -98,22 +122,12 @@ export class SettingsComponent {
     );
   });
 
-  readonly filteredCourses = computed(() => {
-    const q = this.q();
-    const rows = this.courses();
-    if (!q) return rows;
-    return rows.filter(r =>
-      this.includes(r.grado, q) ||
-      this.includes(r.parallel, q)
-    );
-  });
-
   // Útil para tu "No se encontraron resultados" sin variable "filtered"
   readonly activeCount = computed(() => {
     switch (this.selectedTab()) {
       case 'usuarios': return this.filteredUsers().length;
       case 'eventos': return this.filteredEvents().length;
-      case 'cursos': return this.filteredCourses().length;
+      case 'cursos': return this.courses.length;
     }
   });
 
@@ -135,18 +149,73 @@ export class SettingsComponent {
     }
   }
 
-  onEdit(row: UserRow | EventRow | CourseRow) {
+  onEdit(row: UserRow | EventRow | CategoryDTO) {
     // abre modal edit con row
     console.log('edit', row);
   }
 
-  onDelete(row: UserRow | EventRow | CourseRow) {
+  async onDelete(row: UserRow | EventRow | CategoryDTO) {
     if (this.selectedTab() === 'usuarios') {
       this.users.set(this.users().filter(x => x.id !== row.id));
     } else if (this.selectedTab() === 'eventos') {
       this.events.set(this.events().filter(x => x.id !== row.id));
-    } else {
-      this.courses.set(this.courses().filter(x => x.id !== row.id));
     }
   }
+
+  async deleteCourse(id:number){
+    try {
+        const res = await this.modal.confirm({
+          title: 'Eliminar',
+          message: '¿Esta seguro de eliminar este curso?',
+          tone: 'warning'
+        })
+        if(!res) this.toast.error('Error inesperado');
+        this.categoriaService.delete(id).subscribe({
+          next: ()=> {
+            this.toast.success('Curso eliminado correctamente.');
+            this.loadCourses();
+          },
+          error: (err) => console.error('Error', err)
+        });
+        
+      } catch (error) {
+        this.modal.confirm({
+          title:'Error',
+          message: 'Error al eliminar un curso, vuelve a intentarlo.',
+          tone: 'danger'
+        });
+      }
+  }
+  openModalCurso= false;
+  mode: 'create' | 'edit'= 'create';
+  selected: CategoryDTO | null = null;
+  
+  createCourse():void{
+    this.mode = 'create';
+    this.selected = null;
+    this.openModalCurso= true;
+  }
+  
+  editCourse(cat: CategoryDTO): void{
+    this.mode = 'edit';
+    this.selected = cat;
+    this.openModalCurso = true;
+  }
+
+  onSubmitCourse(event:{mode: 'create'| 'edit'; payload: any}):void{
+    const req$ = 
+      event.mode === 'create'
+      ? this.categoriaService.create(event.payload)
+      : this.categoriaService.update(this.selected!.id, event.payload);
+      req$.subscribe({
+        next:()=>{
+          this.openModalCurso = false;
+          event.mode === 'create'
+          ? this.toast.success('Curso creado exitosamente.')
+          : this.toast.success('Curso editado exitosamente.');
+          this.loadCourses();
+        }
+      });
+  }
+
 }

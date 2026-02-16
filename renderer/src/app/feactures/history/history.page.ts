@@ -1,37 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-
+import { TransactionsService, TransactionItem } from '../../core/services/transaccion.service';
+import { StudentService, StudentRow } from '../../core/services/estudiantes.service';
 type TxType = 'PAYMENT' | 'DISCOUNT' | 'REVERSAL';
 type TabKey = 'transacciones' | 'estadisticas' | 'nomina';
 
-type Grade = '1er' | '2do' | '3ro' | '4to';
-type Parallel = 'A' | 'B' | 'C';
-
-export interface StudentRow {
-  id: number;
-  name: string;
-  tutorName: string;
-  tutorPhone: string;
-  tutorEmail: string;
-  grade: Grade;
-  parallel: Parallel;
-}
-
-interface TransactionRow {
-  id: number;
-  dateISO: string;
-  time: string;
-  type: TxType;
-  staff: string;
-  tutor: string;
-  student: string;
-  grade: string;
-  parallel: string;
-  concept: string;
-  note?: string;
-  amount: number;
-}
 
 interface Filters {
   q: string;
@@ -46,7 +20,7 @@ interface Filters {
   imports: [CommonModule, FormsModule],
   templateUrl: './history.page.html',
 })
-export class HistoryPage {
+export class HistoryPage implements OnInit {
   // =========================
   // TABS
   // =========================
@@ -54,84 +28,102 @@ export class HistoryPage {
 
   setTab(tab: TabKey) {
     this.selectedTab = tab;
-
-    // reset paginación de transacciones al cambiar tab
     this.page = 1;
-
-    // si entran a nómina, recalcula sus páginas visibles
-    if (tab === 'nomina') this.refreshNominaPagination();
+    if (tab === 'nomina') {
+      this.loadNominaCourses();
+      if (this.nominaSelectedCourse) {
+        this.loadNominaStudents();
+      }
+    }
   }
 
   // =========================
   // TRANSACCIONES: DATA
   // =========================
-  transacciones: TransactionRow[] = [
-    {
-      id: 1,
-      dateISO: '2026-02-16',
-      time: '10:25',
-      type: 'PAYMENT',
-      staff: 'Admin 1',
-      tutor: 'Roberto Alvarado',
-      student: 'Juana Alvarado',
-      grade: '3ro',
-      parallel: 'A',
-      concept: 'Mensualidad Febrero',
-      note: 'Pago parcial',
-      amount: 200,
-    },
-    {
-      id: 2,
-      dateISO: '2026-02-16',
-      time: '10:25',
-      type: 'DISCOUNT',
-      staff: 'Admin 1',
-      tutor: 'Roberto Alvarado',
-      student: 'Juana Alvarado',
-      grade: '3ro',
-      parallel: 'A',
-      concept: 'Mensualidad Febrero',
-      note: 'Descuento aplicado',
-      amount: 10,
-    },
-    {
-      id: 3,
-      dateISO: '2026-02-05',
-      time: '09:12',
-      type: 'PAYMENT',
-      staff: 'Caja',
-      tutor: 'Roberto Alvarado',
-      student: 'Lucas Alvarado',
-      grade: '1er',
-      parallel: 'B',
-      concept: 'Transporte',
-      amount: 80,
-    },
-    {
-      id: 4,
-      dateISO: '2026-02-06',
-      time: '11:40',
-      type: 'REVERSAL',
-      staff: 'Admin 2',
-      tutor: 'María Perez',
-      student: 'Sofia Perez',
-      grade: '2do',
-      parallel: 'C',
-      concept: 'Mensualidad Febrero',
-      note: 'Reverso por error',
-      amount: 120,
-    },
-  ];
+  transacciones: TransactionItem[] = [];
+  isLoading = false;
+  apiError = '';
+  totalFromApi= 0;
 
   concepts: string[] = [];
+  loadTransactions() {
+    this.isLoading = true;
+    this.apiError = '';
+
+    this.txService.getTransactions(this.page, this.pageSize)
+      .subscribe({
+        next: (res) => {
+          this.transacciones = res.items.map(x => ({
+            id: x.id,
+            dateISO: x.dateISO,
+            time: x.time ?? '',
+            type: x.type,
+            staff: x.staff ?? x.responsable ?? '',
+            tutor: x.tutor,
+            student: x.student,
+            grade: x.grade ?? '',
+            parallel: x.parallel ?? '',
+            concept: x.concept ?? '',
+            note: x.note ?? '',
+            amount: this.round2(x.amount),
+          }));
+
+          this.totalFromApi = res.total;
+          this.applyFilters();
+        },
+        error: (err) => {
+          console.error(err);
+          this.apiError = 'No se pudo cargar historial.';
+        },
+        complete: () => {
+          this.isLoading = false;
+        }
+      });
+  }
+  loadConcepts(){
+    this.txService.getConcepts().subscribe({
+      next: (res) => this.concepts = res,
+      error: (err) => console.error(err)
+    });
+  }
+  loadNominaCourses() {
+    this.nominaLoading = true;
+
+    this.studentService.getNominaCourses().subscribe({
+      next: (res) => {
+        this.nominaCourses = res;
+      },
+      error: (err) => console.error(err),
+      complete: () => this.nominaLoading = false
+    });
+  }
+  loadNominaStudents() {
+    if (!this.nominaSelectedCourse) return;
+    this.nominaLoading = true;
+    this.studentService.getNominaStudents({
+      grade: this.nominaSelectedCourse.grade,
+      parallel: this.nominaSelectedCourse.parallel,
+      q: this.nominaQ,
+      page: this.nominaPage,
+      pageSize: this.nominaPageSize
+    }).subscribe({
+      next: (res) => {
+        this.nominaStudents = res.items;
+        this.nominaTotal = res.total;
+        this.nominaTotalPages = Math.max(1, Math.ceil(res.total / this.nominaPageSize));
+        this.nominaVisiblePages = this.buildVisiblePages(this.nominaPage, this.nominaTotalPages);
+      },
+      error: (err) => console.error(err),
+      complete: () => this.nominaLoading = false
+    });
+  }
 
   // =========================
   // TRANSACCIONES: FILTROS + LISTAS
   // =========================
   filters: Filters = { q: '', from: '', to: '', concept: '' };
 
-  filtered: TransactionRow[] = [];
-  paged: TransactionRow[] = [];
+  paged: TransactionItem[] = [];
 
   // =========================
   // TRANSACCIONES: PAGINACIÓN
@@ -146,9 +138,8 @@ export class HistoryPage {
   }
 
   get pageEnd() {
-    return Math.min(this.pageStart + this.pageSize, this.filtered.length);
+    return Math.min(this.pageStart + this.pageSize, this.totalFromApi);
   }
-
   // =========================
   // KPIs
   // =========================
@@ -162,16 +153,19 @@ export class HistoryPage {
   // =========================
   // INIT
   // =========================
-  constructor() {
-    this.concepts = this.buildConcepts();
-    this.applyFilters();
-    this.refreshNominaPagination(); // por si abren directo nómina luego
-  }
+  constructor(
+    private txService: TransactionsService,
+    private studentService: StudentService
+  ) {}
 
+  ngOnInit(): void {
+    this.loadTransactions();
+    this.loadConcepts();
+  }
   // =========================
   // TRANSACCIONES: UI HELPERS
   // =========================
-  trackById = (_: number, x: TransactionRow) => x.id;
+  trackById = (_: number, x: TransactionItem) => x.id;
 
   formatDate(dateISO: string): string {
     const d = new Date(dateISO + 'T00:00:00');
@@ -210,36 +204,45 @@ export class HistoryPage {
   // TRANSACCIONES: FILTRADO
   // =========================
   applyFilters() {
-    const q = this.norm(this.filters.q);
-    const from = this.filters.from ? new Date(this.filters.from + 'T00:00:00').getTime() : null;
-    const to = this.filters.to ? new Date(this.filters.to + 'T23:59:59').getTime() : null;
-    const concept = this.filters.concept;
+    this.isLoading = true;
 
-    this.filtered = (this.transacciones ?? []).filter(t => {
-      if (concept && t.concept !== concept) return false;
+    this.txService.searchTransactions({
+      tutor: this.filters.q,
+      from: this.filters.from,
+      to: this.filters.to,
+      concept: this.filters.concept, 
+      page: this.page,
+      pageSize: this.pageSize
+    }).subscribe({
+      next: res => {
+        this.transacciones = res.items.map(x => {
+          const fecha = x.dateISO ?? (x.fecha ? x.fecha.split('T')[0] : '');
+          const hora = x.time ?? (x.fecha ? x.fecha.split('T')[1]?.substring(0,5) : '');
 
-      const time = new Date(t.dateISO + 'T00:00:00').getTime();
-      if (from != null && time < from) return false;
-      if (to != null && time > to) return false;
+          return {
+            id: x.id,
+            dateISO: fecha,
+            time: hora,
+            type: x.type,
+            staff: x.staff ?? x.responsable ?? '',
+            tutor: x.tutor,
+            student: x.student,
+            grade: x.grade ?? '',
+            parallel: x.parallel ?? '',
+            concept: x.concept ?? '',
+            note: x.note ?? '',
+            amount: this.round2(x.amount),
+          };
+        });
 
-      if (!q) return true;
-
-      const hay =
-        this.norm(t.staff).includes(q) ||
-        this.norm(t.tutor).includes(q) ||
-        this.norm(t.student).includes(q) ||
-        this.norm(t.concept).includes(q) ||
-        this.norm(t.note ?? '').includes(q);
-
-      return hay;
+        this.totalFromApi = res.total;
+        this.refreshPagination();
+      },
+      error: err => {
+        console.error(err);
+      },
+      complete: () => this.isLoading = false
     });
-
-    // orden: más reciente primero
-    this.filtered.sort((a, b) => (b.dateISO + ' ' + b.time).localeCompare(a.dateISO + ' ' + a.time));
-
-    this.computeKpis();
-    this.page = 1;
-    this.refreshPagination();
   }
 
   resetFilters() {
@@ -247,49 +250,9 @@ export class HistoryPage {
     this.applyFilters();
   }
 
-  private norm(v: any): string {
-    return (v ?? '').toString().trim().toUpperCase();
-  }
-
-  private buildConcepts(): string[] {
-    const set = new Set<string>();
-    for (const t of this.transacciones) set.add(t.concept);
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }
-
   // =========================
   // TRANSACCIONES: KPIs
   // =========================
-  private computeKpis() {
-    const all = this.filtered.length ? this.filtered : this.transacciones;
-
-    const now = new Date();
-    const m = now.getMonth();
-    const y = now.getFullYear();
-
-    let totalIncome = 0;
-    let monthIncome = 0;
-    let totalDiscounts = 0;
-    let totalReversals = 0;
-
-    for (const t of all) {
-      const d = new Date(t.dateISO + 'T00:00:00');
-      const isThisMonth = d.getMonth() === m && d.getFullYear() === y;
-
-      if (t.type === 'PAYMENT') {
-        totalIncome += t.amount;
-        if (isThisMonth) monthIncome += t.amount;
-      }
-      if (t.type === 'DISCOUNT') totalDiscounts += t.amount;
-      if (t.type === 'REVERSAL') totalReversals += 1;
-    }
-
-    this.kpis.totalIncome = this.round2(totalIncome);
-    this.kpis.monthIncome = this.round2(monthIncome);
-    this.kpis.totalDiscounts = this.round2(totalDiscounts);
-    this.kpis.totalReversals = totalReversals;
-  }
-
   private round2(n: number) {
     return Math.round(n * 100) / 100;
   }
@@ -298,21 +261,16 @@ export class HistoryPage {
   // TRANSACCIONES: PAGINACIÓN
   // =========================
   private refreshPagination() {
-    const total = this.filtered.length;
-
-    this.totalPages = Math.max(1, Math.ceil(total / this.pageSize));
+    this.totalPages = Math.max(1, Math.ceil(this.totalFromApi / this.pageSize));
     if (this.page > this.totalPages) this.page = this.totalPages;
-
-    const start = (this.page - 1) * this.pageSize;
-    this.paged = this.filtered.slice(start, start + this.pageSize);
-
+    this.paged = this.transacciones;
     this.visiblePages = this.buildVisiblePages(this.page, this.totalPages);
   }
 
   goToPage(p: number) {
-    if (p < 1 || p > this.totalPages) return;
+    if (p < 1) return;
     this.page = p;
-    this.refreshPagination();
+    this.loadTransactions();
   }
 
   private buildVisiblePages(current: number, total: number): (number | '...')[] {
@@ -333,79 +291,39 @@ export class HistoryPage {
   }
 
   // =========================
-  // TRANSACCIONES: ACTIONS (stubs)
+  // TRANSACCIONES: ACTIONS
   // =========================
   exportPdf() {
-    console.log('Export PDF', { filters: this.filters, rows: this.filtered.length });
+    console.log('Export PDF');
   }
 
   newTransaction() {
     console.log('New transaction');
   }
 
-  // ==========================================================
-  // NÓMINA (aislada) — sin signals, sin choques de nombres
-  // ==========================================================
-  nominaGrades: Grade[] = ['1er', '2do', '3ro', '4to'];
-  nominaParallels: Parallel[] = ['A', 'B', 'C'];
+  // =========================
+  // NÓMINA (API REAL)
+  // =========================
 
-  nominaStudents: StudentRow[] = this.mockStudents(108);
+  nominaCourses: { grade: string; parallel: string; count: number }[] = [];
+  nominaStudents: StudentRow[] = [];
 
-  nominaOpenGrade: Grade | null = '1er';
-  nominaSelectedCourse: { grade: Grade; parallel: Parallel } = { grade: '1er', parallel: 'A' };
+  nominaOpenGrade: string | null = null;
+  nominaSelectedCourse: { grade: string; parallel: string } | null = null;
 
   nominaQ = '';
   nominaPage = 1;
   nominaPageSize = 10;
+  nominaTotal = 0;
+  nominaTotalPages = 1;
 
   nominaVisiblePages: (number | '...')[] = [];
+  nominaLoading = false;
 
   // ===== Nómina: getters =====
   get nominaCourseKey(): string {
+    if (!this.nominaSelectedCourse) return '';
     return `${this.nominaSelectedCourse.grade} ${this.nominaSelectedCourse.parallel}`;
-  }
-
-  get nominaCountByCourse(): Record<string, number> {
-    const map: Record<string, number> = {};
-    for (const g of this.nominaGrades) for (const p of this.nominaParallels) map[`${g} ${p}`] = 0;
-
-    for (const s of this.nominaStudents) {
-      const k = `${s.grade} ${s.parallel}`;
-      map[k] = (map[k] ?? 0) + 1;
-    }
-    return map;
-  }
-
-  get nominaFiltered(): StudentRow[] {
-    const { grade, parallel } = this.nominaSelectedCourse;
-    const q = this.nominaNorm(this.nominaQ);
-
-    const base = this.nominaStudents.filter(s => s.grade === grade && s.parallel === parallel);
-    if (!q) return base;
-
-    return base.filter(s => {
-      const hay = this.nominaNorm(`${s.name} ${s.tutorName} ${s.tutorPhone} ${s.tutorEmail}`);
-      return hay.includes(q);
-    });
-  }
-
-  get nominaTotal(): number {
-    return this.nominaFiltered.length;
-  }
-
-  get nominaTotalPages(): number {
-    return Math.max(1, Math.ceil(this.nominaTotal / this.nominaPageSize));
-  }
-
-  get nominaPaged(): StudentRow[] {
-    const tp = this.nominaTotalPages;
-    if (this.nominaPage > tp) {
-      this.nominaPage = tp;
-      this.refreshNominaPagination();
-    }
-
-    const start = (this.nominaPage - 1) * this.nominaPageSize;
-    return this.nominaFiltered.slice(start, start + this.nominaPageSize);
   }
 
   get nominaPageStart(): number {
@@ -417,68 +335,57 @@ export class HistoryPage {
     return Math.min(this.nominaPage * this.nominaPageSize, this.nominaTotal);
   }
 
+  get nominaGroupedCourses() {
+    const map: Record<string, any[]> = {};
+
+    for (const c of this.nominaCourses) {
+      if (!map[c.grade]) {
+        map[c.grade] = [];
+      }
+      map[c.grade].push(c);
+    }
+
+    return Object.entries(map).map(([grade, courses]) => ({
+      grade,
+      courses
+    }));
+  }
+
   // ===== Nómina: actions =====
-  toggleNominaGrade(g: Grade): void {
+  toggleNominaGrade(g: string): void {
     this.nominaOpenGrade = this.nominaOpenGrade === g ? null : g;
   }
 
-  selectCourse(grade: Grade, parallel: Parallel): void {
+  selectCourse(grade: string, parallel: string): void {
     this.nominaSelectedCourse = { grade, parallel };
+    this.nominaStudents = [];
     this.nominaPage = 1;
     this.nominaQ = '';
-    this.refreshNominaPagination();
+    this.loadNominaStudents();
   }
+
 
   setNominaQuery(v: string): void {
     this.nominaQ = v;
     this.nominaPage = 1;
-    this.refreshNominaPagination();
+    this.loadNominaStudents();
   }
+
 
   setNominaPageSize(v: number): void {
     this.nominaPageSize = Number(v) || 10;
     this.nominaPage = 1;
-    this.refreshNominaPagination();
+    this.loadNominaStudents();
   }
 
-  // paginación con números
   goToNominaPage(p: number): void {
     if (p < 1 || p > this.nominaTotalPages) return;
     this.nominaPage = p;
-    this.refreshNominaPagination();
+    this.loadNominaStudents();
   }
+
 
   private refreshNominaPagination(): void {
     this.nominaVisiblePages = this.buildVisiblePages(this.nominaPage, this.nominaTotalPages);
-  }
-
-  private nominaNorm(v: any): string {
-    return (v ?? '').toString().trim().toLowerCase();
-  }
-
-  // ===== Mock Nómina =====
-  private mockStudents(n: number): StudentRow[] {
-    const names = ['Juan', 'María', 'Carlos', 'Ana', 'Luis', 'Sofía', 'Jorge', 'Valeria', 'Diego', 'Lucía'];
-    const last = ['Pérez', 'Gómez', 'Rojas', 'Flores', 'Vargas', 'Mamani', 'Quispe', 'Torrez', 'López', 'Rivera'];
-
-    const grades: Grade[] = ['1er', '2do', '3ro', '4to'];
-    const parallels: Parallel[] = ['A', 'B', 'C'];
-
-    const out: StudentRow[] = [];
-    for (let i = 1; i <= n; i++) {
-      const grade = grades[(i - 1) % grades.length];
-      const parallel = parallels[(i - 1) % parallels.length];
-
-      out.push({
-        id: i,
-        name: `${names[i % names.length]} ${last[i % last.length]}`,
-        tutorName: `${names[(i + 3) % names.length]} ${last[(i + 5) % last.length]}`,
-        tutorPhone: `7${(1000000 + i).toString().slice(0, 7)}`,
-        tutorEmail: `tutor${i}@mail.com`,
-        grade,
-        parallel,
-      });
-    }
-    return out;
   }
 }

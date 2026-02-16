@@ -9,6 +9,34 @@ router.get("/", async (req, res) => {
   res.json(rows);
 });
 
+// ======================================================
+// GET BY ID
+// ======================================================
+router.get("/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    const [rows] = await pool.query(
+      "SELECT * FROM categorias WHERE id = ?",
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return apiError(res, "NOT_FOUND", "Categoría no encontrada");
+    }
+
+    res.json(rows[0]);
+
+  } catch (error) {
+    console.error(error);
+    return apiError(res, "BUSINESS_RULE", "Error obteniendo categoría");
+  }
+});
+
+
+// ======================================================
+// CREATE
+// ======================================================
 router.post("/", async (req, res) => {
   try {
     const { name, type, active } = req.body;
@@ -22,8 +50,10 @@ router.post("/", async (req, res) => {
     }
 
     const [result] = await pool.query(
-      `INSERT INTO categorias (name, type, active)
-       VALUES (?, ?, ?)`,
+      `
+      INSERT INTO categorias (name, type, active)
+      VALUES (?, ?, ?)
+      `,
       [name, type, active ?? true]
     );
 
@@ -35,5 +65,67 @@ router.post("/", async (req, res) => {
   }
 });
 
+
+// ======================================================
+// UPDATE
+// ======================================================
+router.put("/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { name, type, active } = req.body;
+
+    if (!name) {
+      return apiError(res, "VALIDATION_ERROR", "Nombre requerido");
+    }
+
+    if (!type) {
+      return apiError(res, "VALIDATION_ERROR", "Tipo requerido");
+    }
+
+    const [result] = await pool.query(
+      `
+      UPDATE categorias
+      SET name = ?, type = ?, active = ?
+      WHERE id = ?
+      `,
+      [name, type, active ?? true, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return apiError(res, "NOT_FOUND", "Categoría no encontrada");
+    }
+
+    res.json({ ok: true });
+
+  } catch (error) {
+    console.error(error);
+    return apiError(res, "BUSINESS_RULE", "No se pudo actualizar la categoría");
+  }
+});
+
+
+// ======================================================
+// DELETE (hard delete)
+// ======================================================
+router.delete("/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    const [result] = await pool.query(
+      "DELETE FROM categorias WHERE id = ?",
+      [id]
+    );
+
+    if (result.affectedRows === 0) {
+      return apiError(res, "NOT_FOUND", "Categoría no encontrada");
+    }
+
+    res.json({ ok: true });
+
+  } catch (error) {
+    console.error(error);
+    return apiError(res, "BUSINESS_RULE", "No se pudo eliminar la categoría");
+  }
+});
 
 module.exports = router;
