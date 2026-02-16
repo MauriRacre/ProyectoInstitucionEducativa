@@ -25,6 +25,8 @@ app.use("/api/catalogs", require("./routes/catalogs.routes"));
 app.use("/api/categories", require("./routes/categories.routes"));
 app.use("/api/payments", require("./routes/payments.routes"));
 app.use("/api", require("./routes/movements.routes"));
+app.use("/api/users", require("./routes/users.routes"));
+app.use("/api/events", require("./routes/events.routes"));
 
 app.use("/api/transactions", require("./routes/transactions.routes"));
 module.exports = app;
