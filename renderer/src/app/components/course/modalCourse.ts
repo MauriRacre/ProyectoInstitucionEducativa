@@ -2,10 +2,10 @@ import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges } from
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angular/forms';
 @Component({
-  selector: 'app-modal-course',
-  standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
-  templateUrl: './modalCourse.html',
+    selector: 'app-modal-course',
+    standalone: true,
+    imports: [CommonModule, ReactiveFormsModule],
+    templateUrl: './modalCourse.html',
 })
 export class ModalCourseComponent implements OnChanges {
 

@@ -60,4 +60,8 @@ export class CategoryService{
     delete(id:number):Observable<any>{
         return this.http.delete<any>(`${this.baseUrl2}/${id}`);
     }
+    /**Get all courses */
+    getCoursesAll(): Observable<any>{
+        return this.http.get<any>(`${this.baseUrl2}/allCourses`);
+    }
 }

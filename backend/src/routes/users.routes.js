@@ -56,12 +56,12 @@ router.get("/:id", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const { nombre, username, password, rol, email } = req.body;
+    const { name, username, password, rol, email } = req.body;
 
     const [result] = await pool.query(
       `INSERT INTO usuarios (nombre, username, password, rol, email)
-       VALUES (?, ?, ?, ?, ?)`,
-      [nombre, username, password, rol, email]
+       VALUES (?, ?, NULL, 'USER', ?)`,
+      [name, username, password, rol, email]
     );
 
     res.status(201).json({ id: result.insertId });
@@ -75,13 +75,13 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, username, rol, email } = req.body;
+    const { name, username, rol, email } = req.body;
 
     await pool.query(
       `UPDATE usuarios
        SET nombre = ?, username = ?, rol = ?, email = ?
        WHERE id = ?`,
-      [nombre, username, rol, email, id]
+      [name, username, rol, email, id]
     );
 
     res.json({ ok: true });
