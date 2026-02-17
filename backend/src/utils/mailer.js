@@ -37,4 +37,22 @@ async function sendPaymentMail(to, data) {
   });
 }
 
-module.exports = { sendMail, sendPaymentMail };
+async function sendRecoveryMail(to, nombre, ping) {
+  await transporter.sendMail({
+    from: `"Unidad Educativa Maravillas del Saber" <${process.env.MAIL_USER}>`,
+    to,
+    subject: "Recuperación de PIN de acceso",
+    html: `
+      <p>Estimado/a ${nombre},</p>
+      <p>Se ha solicitado la recuperación de su PIN.</p>
+      <p><strong>Su nuevo PIN de acceso es:</strong></p>
+      <h2>${ping}</h2>
+      <p>Si usted no realizó esta solicitud, comuníquese con la institución.</p>
+      <br>
+      <p>Unidad Educativa Maravillas del Saber</p>
+    `,
+  });
+}
+
+module.exports = { sendMail, sendPaymentMail, sendRecoveryMail };
+
