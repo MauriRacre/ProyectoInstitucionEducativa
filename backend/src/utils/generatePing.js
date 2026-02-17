@@ -1,12 +1,25 @@
-function generatePing(length = 6) {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let ping = "";
+// Genera un PIN numérico de 4 dígitos
+function generatePing() {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+}
 
-  for (let i = 0; i < length; i++) {
-    ping += chars.charAt(Math.floor(Math.random() * chars.length));
+// Genera un PIN único validando que no exista en la BD
+async function generateUniquePing(pool) {
+  let ping;
+  let exists = true;
+
+  while (exists) {
+    ping = generatePing();
+
+    const [[row]] = await pool.query(
+      "SELECT id FROM usuarios WHERE ping = ?",
+      [ping]
+    );
+
+    exists = !!row;
   }
 
   return ping;
 }
 
-module.exports = { generatePing };
+module.exports = { generatePing, generateUniquePing };

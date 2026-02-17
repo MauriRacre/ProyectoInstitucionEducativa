@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
 const { apiError } = require("../utils/apiError");
-const { generatePing } = require("../utils/generatePing");
+const { generateUniquePing } = require("../utils/generatePing");
 const { sendMail } = require("../utils/mailer");
 
 router.get("/", async (req, res) => {
@@ -59,8 +59,7 @@ router.get("/:id", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const { nombre, username, rol, email } = req.body;
-
-    const ping = generatePing(4);
+    const ping = await generateUniquePing(pool);
 
     const [result] = await pool.query(
       `INSERT INTO usuarios (nombre, username, rol, email, ping)
