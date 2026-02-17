@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
 const { apiError } = require("../utils/apiError");
+const { generatePing } = require("../utils/generatePing");
+const { sendMail } = require("../utils/mailer");
 
 router.get("/", async (req, res) => {
   try {
@@ -56,15 +58,33 @@ router.get("/:id", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const { nombre, username, password, rol, email } = req.body;
+    const { nombre, username, rol, email } = req.body;
+
+    const ping = generatePing(6);
 
     const [result] = await pool.query(
-      `INSERT INTO usuarios (nombre, username, password, rol, email)
+      `INSERT INTO usuarios (nombre, username, rol, email, ping)
        VALUES (?, ?, ?, ?, ?)`,
-      [nombre, username, password, rol, email]
+      [nombre, username, rol, email, ping]
     );
 
-    res.status(201).json({ id: result.insertId });
+    // Enviar correo
+    await sendMail({
+      to: email,
+      subject: "Acceso al Sistema",
+      html: `
+        <h3>Bienvenido ${nombre}</h3>
+        <p>Su acceso ha sido creado.</p>
+        <p><strong>Usuario:</strong> ${username}</p>
+        <p><strong>PIN:</strong> ${ping}</p>
+        <p>Use estos datos para ingresar al sistema.</p>
+      `
+    });
+
+    res.status(201).json({
+      id: result.insertId,
+      message: "Usuario creado y PIN enviado por correo"
+    });
 
   } catch (error) {
     console.error(error);
