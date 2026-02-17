@@ -8,9 +8,19 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+
+async function sendMail({ to, subject, html }) {
+  await transporter.sendMail({
+    from: process.env.MAIL_FROM,
+    to,
+    subject,
+    html,
+  });
+}
+
 async function sendPaymentMail(to, data) {
   await transporter.sendMail({
-    from: process.env.MAIL_USER,
+    from: process.env.MAIL_FROM,
     to,
     subject: "Confirmación de pago registrado",
     html: `
@@ -27,4 +37,4 @@ async function sendPaymentMail(to, data) {
   });
 }
 
-module.exports = { sendPaymentMail };
+module.exports = { sendMail, sendPaymentMail };

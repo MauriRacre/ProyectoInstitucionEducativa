@@ -3,40 +3,28 @@ const router = express.Router();
 const pool = require('../config/db');
 const bcrypt = require('bcrypt');
 
-router.post('/login', async (req, res) => {
+router.post("/login", async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, ping } = req.body;
 
-    const [rows] = await pool.query(
-      'SELECT * FROM usuarios WHERE username = ?',
-      [username]
+    const [[user]] = await pool.query(
+      `SELECT id, nombre, rol
+       FROM usuarios
+       WHERE username = ? AND ping = ?`,
+      [username, ping]
     );
 
-    if (rows.length === 0) {
-      return res.status(401).json({ ok: false, message: 'Usuario no existe' });
+    if (!user) {
+      return apiError(res, "UNAUTHORIZED", "Credenciales inválidas");
     }
 
-    const user = rows[0];
-
-    const match = await bcrypt.compare(password, user.password);
-
-    if (!match) {
-      return res.status(401).json({ ok: false, message: 'Contraseña incorrecta' });
-    }
-
-    res.json({
-      ok: true,
-      user: {
-        id: user.id,
-        username: user.username,
-        rol: user.rol
-      }
-    });
+    res.json(user);
 
   } catch (error) {
     console.error(error);
-    res.status(500).json({ ok: false });
+    apiError(res, "BUSINESS_RULE", "Error en login");
   }
 });
+
 
 module.exports = router;
