@@ -14,8 +14,8 @@ router.get("/", async (req, res) => {
         username,
         email,
         ping
-       FROM usuarios
-       ORDER BY id`
+        FROM usuarios
+        ORDER BY id`
     );
 
     res.json({ items: rows });
@@ -60,7 +60,7 @@ router.post("/", async (req, res) => {
   try {
     const { nombre, username, rol, email } = req.body;
 
-    const ping = generatePing(6);
+    const ping = generatePing(4);
 
     const [result] = await pool.query(
       `INSERT INTO usuarios (nombre, username, rol, email, ping)
@@ -111,6 +111,5 @@ router.put("/:id", async (req, res) => {
     apiError(res, "BUSINESS_RULE", "Error actualizando usuario");
   }
 });
-
 
 module.exports = router;
