@@ -586,7 +586,7 @@ export class PayPage implements OnInit{
           ));
         }
       }
-
+      this.closeModalAbono();
       this.toast.success('Cargo registrado correctamente');
       this.fetchPayView(this.idTutor);
 
