@@ -221,8 +221,8 @@ router.get("/:tutorId/pay-view", async (req, res) => {
 
     const [[tutor]] = await pool.query(
       `SELECT id, nombre, telefono, correo AS email
-       FROM tutores
-       WHERE id = ?`,
+        FROM tutores
+        WHERE id = ?`,
       [tutorId]
     );
 
@@ -242,7 +242,7 @@ router.get("/:tutorId/pay-view", async (req, res) => {
     for (const child of children) {
 
       const [concepts] = await pool.query(
-        `SELECT id, mes, anio, monto
+        `SELECT id, mes, anio, total AS monto
          FROM mensualidades
          WHERE estudiante_id = ? AND anio = ?`,
         [child.id, year]
@@ -322,7 +322,6 @@ router.get("/:tutorId/pay-view", async (req, res) => {
     apiError(res, "BUSINESS_RULE", "Error construyendo PayView");
   }
 });
-
 router.get("/:id/full", async (req, res) => {
   try {
     const tutorId = req.params.id;

@@ -140,6 +140,7 @@ export class PayPage implements OnInit{
     const includeHistory = true;
     this.tutorapi.getPayView(tutorId, year, includeHistory).subscribe({
       next:(res:any) => {
+        console.log(res);
         const api = res as PayViewApi;
         this.tutor = {
           id: Number(api.tutor?.id ?? 0),
@@ -176,17 +177,9 @@ export class PayPage implements OnInit{
               reversed: !!h.reversed,
               reverted: !!h.reversed,
             }));
-            const pendingNorm = this.normalizePending(p.pending);
+            const amountTotalNorm = Number(p.amountTotal ?? 0);
+            const pendingNorm = Number(p.pending ?? 0);
 
-            const paidPlusDiscount = history.reduce(
-              (acc, x) => acc + (x.paid ?? 0) + (x.discount ?? 0),
-              0
-            );
-
-            const amountTotalNorm =
-              p.amountTotal != null
-                ? this.money(p.amountTotal)
-                : this.round2(paidPlusDiscount + pendingNorm);
 
             return {
               id: Number(p.id),
@@ -200,6 +193,11 @@ export class PayPage implements OnInit{
           if(!this.childPage[childId]) this.childPage[childId] = 1;
         }
         this.paymentsByChild = mapped;
+        for (const c of this.children) {
+          if (!this.paymentsByChild[c.id]) {
+            this.paymentsByChild[c.id] = [];
+          }
+        }
         this.selectedIds.clear();
         this.draftDiscount = {};
         this.draftPay = {};

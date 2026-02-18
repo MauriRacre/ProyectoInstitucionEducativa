@@ -71,22 +71,18 @@ export class GastoModal implements  OnChanges {
 
     onSubmit(): void {
         if (this.form.invalid) {
-        this.markAllAsTouched();
-        return;
+            this.markAllAsTouched();
+            return;
         }
 
-        this.loading = true;
-
         const value: ExpenseFormValue = {
-        concept: this.form.value.concept!,
-        monto: Number(this.form.value.monto)
+            concept: this.form.value.concept!,
+            monto: Number(this.form.value.monto)
         };
 
-        setTimeout(() => {
-        this.loading = false;
         this.save.emit(value);
-        }, 600);
     }
+
 
     onCancel(): void {
         if (this.loading) return;

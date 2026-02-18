@@ -4,7 +4,11 @@ import { enviroment } from "../../../environment/enviroment";
 import { Observable } from "rxjs";
 
 export type TransactionType = 'PAYMENT' | 'DISCOUNT' | 'REVERSAL';
-
+export interface CreateExpenseDTO {
+    encargado: string;
+    concepto: string;
+    monto: number;
+}
 export interface TransactionItem {
     id: number;
     dateISO: string;   
@@ -88,5 +92,12 @@ export class TransactionsService {
     /** Lista de Conceptos */
     getConcepts(): Observable<string[]>{
         return this.http.get<string[]>(`${this.baseUrl}${this.resource}/concepts`);
+    }
+    /** Nuevo gasto */
+    createGasto(dto: CreateExpenseDTO): Observable<{ message: string }> {
+        return this.http.post<{ message: string }>(
+            `${this.baseUrl}/api/gasto`,
+            dto
+        );
     }
 }
