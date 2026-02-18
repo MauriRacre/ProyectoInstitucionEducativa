@@ -11,7 +11,7 @@ export type DestinoPago = 'PAGAR_AHORA' | 'AGREGAR_DEUDA';
 })
 export class ModalAbono {
   @Input() open = false;
-  @Input() estudiantes: string[] = [];
+  @Input() estudiantes:{ id: number; name: string }[] = [];
   @Input() categorias : string[] = [];
   @Output() closed = new EventEmitter<void>();
   @Output() saved = new EventEmitter<any>();
@@ -27,11 +27,10 @@ export class ModalAbono {
   ];
 
   constructor(private fb: FormBuilder) {
-    // ✅ OJO: el control se llama "meses" (no "mes") y es string[]
     this.form = this.fb.nonNullable.group({
       estudiante: ['', Validators.required],
       categoria: ['', Validators.required],
-      meses: [<string[]>[], Validators.required], // ✅ multi
+      meses: [<string[]>[], Validators.required], 
       monto: [0, [Validators.required, Validators.min(0)]],
       descuento: [0, [Validators.min(0)]],
       destino: ['PAGAR_AHORA' as DestinoPago, Validators.required],
@@ -143,7 +142,6 @@ export class ModalAbono {
 
     this.form.markAllAsTouched();
 
-    // ✅ bloquear si descuento invalida el total
     if (this.form.invalid || this.descuentoExcedeSubtotal) {
       return;
     }
@@ -158,10 +156,9 @@ export class ModalAbono {
     };
 
     this.loading = true;
+    this.setFormDisabled(true);
     try {
       await new Promise(res => setTimeout(res, 600));
-
-      // ✅ emite meses + totales (por si lo usas en backend)
       this.saved.emit({
         estudiante: v.estudiante,
         categoria: v.categoria,
@@ -173,11 +170,19 @@ export class ModalAbono {
         destino: v.destino,
       });
 
-      this.onCancel();
     } catch (e) {
       this.errorMsg = 'No se pudo guardar el cargo. Intenta nuevamente.';
     } finally {
       this.loading = false;
+      this.setFormDisabled(false);
     }
   }
+  private setFormDisabled(disabled: boolean) {
+    if (disabled) {
+      this.form.disable({ emitEvent: false });
+    } else {
+      this.form.enable({ emitEvent: false });
+    }
+  }
+
 }

@@ -31,23 +31,7 @@
     <div *ngIf="apiErrorMsg && !isLoading" class="mt-4 text-sm text-rojo font-semibold">
       {{ apiErrorMsg }}
     </div>
-    <!--Modal abono-->
-    <app-modal-abono
-      [open]="showModalAbono"
-      [estudiantes]="studentNames"
-      [categorias]="categorias"
-      (closed)="closeModalAbono()"
-      (saved)="onSaved($event)"
-    ></app-modal-abono>
-    <!--Modal Edit-->
-    <app-modal-register
-        [open]="showModalEdit"
-        [mode]="mode"
-        [value]="editValue"
-        [loading]="loadingEdit"
-        (close)="closeModalEdit()"
-        (submitForm)="onSavedEdit($event)"
-    ></app-modal-register>
+ 
     <!-- Layout -->
     <div class="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-12">
 
@@ -419,3 +403,20 @@
     </div>
   </div>
 </div>
+<!--Modal abono-->
+<app-modal-abono
+  [open]="showModalAbono"
+  [estudiantes]="studentOptions"
+  [categorias]="categorias"
+  (closed)="closeModalAbono()"
+  (saved)="onSaved($event)"
+></app-modal-abono>
+<!--Modal Edit-->
+<app-modal-register
+    [open]="showModalEdit"
+    [mode]="mode"
+    [value]="editValue"
+    [loading]="loadingEdit"
+    (close)="closeModalEdit()"
+    (submitForm)="onSavedEdit($event)"
+></app-modal-register>

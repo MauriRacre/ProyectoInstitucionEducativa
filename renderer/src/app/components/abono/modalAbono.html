@@ -31,7 +31,7 @@
             type="button"
             class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-600/30 disabled:opacity-60"
             (click)="onCancel()"
-            [disabled]="loading"
+            
             aria-label="Cerrar"
           >
             ✕
@@ -53,7 +53,7 @@
                 class="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               >
                 <option value="" disabled>Selecciona un alumno</option>
-                <option *ngFor="let s of estudiantes" [value]="s">{{ s }}</option>
+                <option *ngFor="let s of estudiantes" [value]="s.id">{{ s.name }}</option>
               </select>
               <p *ngIf="touchedInvalid('estudiante')" class="mt-1 text-xs text-red-600">
                 Selecciona un alumno.
@@ -88,7 +88,7 @@
                     type="button"
                     class="text-xs font-semibold text-gray-600 hover:text-gray-900 underline"
                     (click)="selectAllMeses()"
-                    [disabled]="loading"
+                    
                   >
                     Seleccionar todos
                   </button>
@@ -96,7 +96,7 @@
                     type="button"
                     class="text-xs font-semibold text-gray-600 hover:text-gray-900 underline"
                     (click)="clearMeses()"
-                    [disabled]="loading"
+                    
                   >
                     Limpiar
                   </button>
@@ -108,7 +108,7 @@
                   type="button"
                   *ngFor="let m of meses"
                   (click)="toggleMes(m)"
-                  [disabled]="loading"
+                  
                   class="px-3 py-2 rounded-xl border text-sm font-semibold transition
                         hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
                   [ngClass]="isMesSelected(m)
@@ -183,7 +183,7 @@
                   formControlName="destino"
                   value="PAGAR_AHORA"
                   class="mt-1"
-                  [disabled]="loading"
+                  
                 />
                 <div class="min-w-0">
                   <div class="text-sm font-semibold text-gray-900">Pagar ahora</div>
@@ -203,7 +203,7 @@
                   formControlName="destino"
                   value="AGREGAR_DEUDA"
                   class="mt-1"
-                  [disabled]="loading"
+                  
                 />
                 <div class="min-w-0">
                   <div class="text-sm font-semibold text-gray-900">Agregar a deuda</div>
@@ -290,7 +290,7 @@
               type="button"
               class="w-28 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-800 border border-gray-200 hover:bg-gray-100 disabled:opacity-60"
               (click)="onCancel()"
-              [disabled]="loading"
+              
             >
               Cancelar
             </button>

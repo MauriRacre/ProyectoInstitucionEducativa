@@ -8,6 +8,9 @@ import { ModalRegister, Mode, Parent } from '../../components/register/modalRegi
 import { ActivatedRoute } from '@angular/router';
 import { TutorApiService } from '../../core/services/tutor.service';
 import { CategoryService, CategoryDTO, CategoryType } from '../../core/services/categoria.service';
+import { PaymentService } from '../../core/services/pay.service';
+import { firstValueFrom } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 type Parallel = 'A' | 'B' | 'C';
 type Grade = 'Kinder' | 'Pre-Kinder' | '1er' | '2do' | '3ro' | '4to' | '5to' | '6to';
@@ -91,7 +94,8 @@ export class PayPage implements OnInit{
     private toast: ToastService,
     private route: ActivatedRoute,
     private tutorapi: TutorApiService,
-    private categoryapi: CategoryService
+    private categoryapi: CategoryService,
+    private paymentApi: PaymentService,
   ) {}
 
   isLoading = false;
@@ -108,7 +112,8 @@ export class PayPage implements OnInit{
   childPage: Record<number, number>={};
   idTutor = 0;
   ngOnInit(): void {
-    this.route.paramMap.subscribe(params => {
+    this.route.paramMap
+    .subscribe(params => {
       const id = Number(params.get('id'));
       if (!id) return;
       this.idTutor = id;
@@ -116,11 +121,22 @@ export class PayPage implements OnInit{
         this.fetchCategorias();
     });
   }
+  private get currentUserName(): string {
+    const raw = localStorage.getItem('user');
+    if (!raw) return 'SISTEMA';
+
+    try {
+      const user = JSON.parse(raw);
+      return user?.nombre || user?.username || 'SISTEMA';
+    } catch {
+      return 'SISTEMA';
+    }
+  }
 
   private fetchPayView(tutorId:number){
     this.isLoading = true;
     this.apiErrorMsg = '';
-    const year = 2026;
+    const year = new Date().getFullYear();
     const includeHistory = true;
     this.tutorapi.getPayView(tutorId, year, includeHistory).subscribe({
       next:(res:any) => {
@@ -137,6 +153,11 @@ export class PayPage implements OnInit{
           grade:c.grade,
           parallel: c.parallel,
         }));
+        this.studentOptions = this.children.map(c => ({
+          id: c.id,
+          name: c.name
+        }));
+
         const mapped : Record<number, PaymentConcept[]>={};
         const rawMap = api.paymentsByChild ?? {};
         for(const [childIdStr, list] of Object.entries(rawMap)){
@@ -276,9 +297,9 @@ export class PayPage implements OnInit{
   }
 
   // ------------------ Pagination per child ------------------
-  private ensureChildPage(childId: number) {
-    if (!this.childPage[childId]) this.childPage[childId] = 1;
-  }
+  //private ensureChildPage(childId: number) {
+    //if (!this.childPage[childId]) this.childPage[childId] = 1;
+ // }
 
   childTotalPages(childId: number): number {
     const total = this.paymentsByChild[childId]?.length ?? 0;
@@ -286,9 +307,10 @@ export class PayPage implements OnInit{
   }
 
   childPageStart(childId: number): number {
-    this.ensureChildPage(childId);
-    return (this.childPage[childId] - 1) * this.pageSize;
+    const page = this.childPage[childId] ?? 1;
+    return (page - 1) * this.pageSize;
   }
+
 
   childPageEnd(childId: number): number {
     const total = this.paymentsByChild[childId]?.length ?? 0;
@@ -296,13 +318,16 @@ export class PayPage implements OnInit{
   }
 
   pagedPayments(childId: number): PaymentConcept[] {
-    this.ensureChildPage(childId);
-    const totalPages = this.childTotalPages(childId);
-    if (this.childPage[childId] > totalPages) this.childPage[childId] = totalPages;
+    const page = this.childPage[childId] ?? 1;
+    const total = this.paymentsByChild[childId]?.length ?? 0;
+    const totalPages = Math.max(1, Math.ceil(total / this.pageSize));
+    const safePage = Math.min(page, totalPages);
 
-    const start = this.childPageStart(childId);
+    const start = (safePage - 1) * this.pageSize;
+
     return (this.paymentsByChild[childId] ?? []).slice(start, start + this.pageSize);
   }
+
 
   goToChildPage(childId: number, p: number) {
     const total = this.childTotalPages(childId);
@@ -311,7 +336,7 @@ export class PayPage implements OnInit{
   }
 
   visiblePages(childId: number): (number | '...')[] {
-    this.ensureChildPage(childId);
+    //this.ensureChildPage(childId);
     const total = this.childTotalPages(childId);
     const current = this.childPage[childId];
     const delta = 1;
@@ -436,80 +461,70 @@ export class PayPage implements OnInit{
     });
 
     if (!ok) return;
+    const movements = [];
 
-    // Aplica pago + descuento y registra en historial (demo)
-    const all = Object.values(this.paymentsByChild).flat();
-    const todayISO = new Date().toISOString().slice(0, 10);
+    for (const id of this.selectedIds) {
 
-    for (const p of all) {
-      if (!this.selectedIds.has(p.id)) continue;
-
-      const disc = Math.max(0, this.draftDiscount[p.id] ?? 0);
-      const pay = Math.max(0, this.draftPay[p.id] ?? 0);
-
-      const prevPending = p.pending;
-      const appliedTotal = this.round2(Math.min(pay + disc, prevPending));
-      p.pending = this.round2(Math.max(0, prevPending - appliedTotal));
-
-      const movement: PaymentHistoryItem = {
-        id: Date.now() + p.id,
-        dateISO: todayISO,
-        conceptLabel: p.concept,
-        paid: this.round2(pay),
-        discount: this.round2(disc),
-        appliedTotal,
-        note: 'Registro desde pantalla de cobro',
-      };
-
-      p.history = [movement, ...(p.history ?? [])];
+      movements.push({
+        conceptId: id,
+        dto: {
+          paid: this.draftPay[id] ?? 0,
+          discount: this.draftDiscount[id] ?? 0,
+          responsible: this.currentUserName
+        }
+      });
     }
 
-    // Limpieza
-    this.selectedIds.clear();
-    this.draftDiscount = {};
-    this.draftPay = {};
-
-    this.toast.success('Pago registrado correctamente');
+    this.paymentApi.registerMultipleMovements(movements)
+    .subscribe({
+      next: () => {
+        this.toast.success('Pago registrado correctamente');
+        this.selectedIds.clear();
+        this.draftDiscount = {};
+        this.draftPay = {};
+        this.fetchPayView(this.idTutor); // refresca desde backend real
+      },
+      error: err => {
+        console.error(err);
+        this.toast.error('Error registrando pago');
+      }
+    });
   }
 
   async revertLastMovement(p: PaymentConcept) {
+
     const last = (p.history ?? [])[0];
-    if (!last) {
-      this.toast.warning('No hay movimientos para revertir.');
-      return;
-    }
-    if (last.reverted) {
-      this.toast.warning('El último movimiento ya fue revertido.');
-      return;
-    }
+    if (!last) return;
 
     const ok = await this.modal.confirm({
       title: 'Revertir último movimiento',
-      message: `Se revertirá el último pago: +Bs. ${last.paid.toFixed(2)} y descuento Bs. ${last.discount.toFixed(2)}. ¿Continuar?`,
-      tone: 'warning',
-      confirmText: 'Revertir',
-      cancelText: 'Cancelar',
+      message: '¿Deseas revertir el último pago?',
+      tone: 'warning'
     });
 
     if (!ok) return;
 
-    // ✅ Revertir: devolvemos al pendiente lo que se aplicó
-    p.pending = this.round2((p.pending ?? 0) + (last.appliedTotal ?? (last.paid + last.discount)));
-
-    // Opción A: eliminar el movimiento
-    //p.history = p.history.slice(1);
-
-    // Opción B (auditoría): marcar como revertido y mantenerlo
-    last.reverted = true;
-
-    this.toast.success('Último movimiento revertido');
+    this.paymentApi.revertMovement(last.id, {
+      reason: 'Reversión manual',
+      responsible: this.currentUserName
+    }).subscribe({
+      next: () => {
+        this.toast.success('Movimiento revertido');
+        this.fetchPayView(this.idTutor);
+      },
+      error: err => {
+        console.error(err);
+        this.toast.error('No se pudo revertir');
+      }
+    });
   }
+
   /** Modal Abono */
-  get studentNames(): string[] {
-    return this.children.map(c => c.name);
-  }
-  categorias: string[] = [];
+  studentOptions: { id: number; name: string }[] = [];
 
+
+  categorias: string[] = [];
+  
   private fetchCategorias() {
     this.categoryapi.getAll().subscribe(res => {
       this.categorias = res.map(c => c.name);
@@ -522,16 +537,64 @@ export class PayPage implements OnInit{
   closeModalAbono(){
     this.showModalAbono = false;
   }
-  onSaved( payload: {
-    estudiante: string;
+  async onSaved(payload: {
+    estudiante: number;  
     categoria: string;
-    mes: string;
-    monto: number;
+    meses: string[];
+    montoUnitario: number;
+    descuento: number;
+    subtotal: number;
+    total: number;
     destino: DestinoPago;
-  }){
-    this.toast.success('Abono guardado correctamente');
-    this.closeModalAbono();
+  }) {
+    console.log(payload);
+    const year = new Date().getFullYear();
+
+    const monthMap: Record<string, number> = {
+      Enero: 1, Febrero: 2, Marzo: 3, Abril: 4,
+      Mayo: 5, Junio: 6, Julio: 7, Agosto: 8,
+      Septiembre: 9, Octubre: 10, Noviembre: 11, Diciembre: 12
+    };
+
+    try {
+      const descuentoPorMes = Math.round(
+        (payload.descuento / payload.meses.length) * 100
+      ) / 100;
+
+      for (const mes of payload.meses) {
+
+        const mensualidad = await firstValueFrom(this.paymentApi.createMensualidad({
+          estudiante_id: payload.estudiante,
+          period: {
+            year,
+            month: monthMap[mes]
+          },
+          base_amount: payload.montoUnitario,
+          extra_amount: 0,
+          discount_amount: descuentoPorMes
+        }));
+        if (payload.destino === 'PAGAR_AHORA') {
+
+          await firstValueFrom(this.paymentApi.registerMovement(
+            mensualidad!.id,
+            {
+              paid: payload.montoUnitario - descuentoPorMes,
+              discount: 0,
+              responsible: this.currentUserName
+            }
+          ));
+        }
+      }
+
+      this.toast.success('Cargo registrado correctamente');
+      this.fetchPayView(this.idTutor);
+
+    } catch (error) {
+      console.error(error);
+      this.toast.error('Error registrando cargo');
+    }
   }
+
   
   /** ModalEdit */
   showModalEdit = false;
