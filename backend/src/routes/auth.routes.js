@@ -15,7 +15,10 @@ router.post("/login", async (req, res) => {
     );
 
     if (!user) {
-      return apiError(res, "UNAUTHORIZED", "Credenciales inválidas");
+      return res.status(401).json({
+        code: "UNAUTHORIZED",
+        message: "Credenciales inválidas"
+      });
     }
 
     res.json(user);

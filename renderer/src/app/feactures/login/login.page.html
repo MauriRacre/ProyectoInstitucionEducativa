@@ -30,6 +30,7 @@
           <input type="text"
                 formControlName="username"
                 placeholder="Ingrese su nombre de usuario"
+                [class.border-red-500]="errorMessage"
                 class="w-full border border-gray-300 rounded-lg px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-600 transition">
           <span class="absolute left-3 top-2.5 text-gray-400">
             👤
@@ -50,6 +51,7 @@
                 maxlength="1"
                 inputmode="numeric"
                 class="w-14 h-14 text-center text-xl border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition"
+                [class.border-red-500]="errorMessage"
                 [formControl]="ctrl"
                 (input)="onPinInput($event, i)"
                 (keydown)="onPinKeyDown($event, i)">
@@ -70,6 +72,11 @@
       </button>
 
     </form>
+    <!-- Mensaje de error -->
+    <div *ngIf="errorMessage"
+        class="mt-4 text-sm text-red-600 text-center font-medium animate-pulse">
+      {{ errorMessage }}
+    </div>
 
     <!-- Footer -->
     <div class="mt-6 text-center text-[10px] text-gray-400">

@@ -32,7 +32,9 @@ export class AuthService {
         tap(user => {
             localStorage.setItem('user', JSON.stringify(user));
         }),
-        catchError(this.handleError)
+        catchError((error: HttpErrorResponse) => {
+            return throwError(() => error);
+        })
         );
     }
 
