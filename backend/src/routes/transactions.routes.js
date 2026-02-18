@@ -10,30 +10,61 @@ router.get("/", async (req, res) => {
     const pageSize = parseInt(req.query.pageSize) || 10;
     const offset = (page - 1) * pageSize;
 
-    const [rows] = await pool.query(
-      `SELECT 
-          p.id,
-          DATE(p.fecha) AS dateISO,
-          TIME(p.fecha) AS time,
-          'PAYMENT' AS type,
-          p.responsable AS staff,
-          t.nombre AS tutor,
-          e.nombre AS student,
-          e.grado AS grade,
-          e.paralelo AS parallel,
-          CONCAT('Mensualidad ', m.mes, ' ', m.anio) AS concept,
-          p.nota AS note,
-          (p.monto + p.descuento) AS amount
-       FROM pagos p
-       JOIN mensualidades m ON m.id = p.mensualidad_id
-       JOIN estudiantes e ON e.id = m.estudiante_id
-       JOIN tutores t ON t.id = e.tutor_id
-       ORDER BY p.fecha DESC
-       LIMIT ? OFFSET ?`,
-      [pageSize, offset]
-    );
+    const baseQuery = `
+      SELECT 
+        p.id,
+        DATE(p.fecha) AS dateISO,
+        TIME(p.fecha) AS time,
+        CASE 
+          WHEN p.reversed = 1 OR p.monto < 0 THEN 'REVERSAL'
+          WHEN p.monto = 0 AND p.descuento > 0 THEN 'DISCOUNT'
+          ELSE 'PAYMENT'
+        END AS type,
+        p.responsable AS staff,
+        t.nombre AS tutor,
+        e.nombre AS student,
+        e.grado AS grade,
+        e.paralelo AS parallel,
+        CONCAT('Mensualidad ', m.mes, ' ', m.anio) AS concept,
+        p.nota AS note,
+        (p.monto + p.descuento) AS amount
+      FROM pagos p
+      JOIN mensualidades m ON m.id = p.mensualidad_id
+      JOIN estudiantes e ON e.id = m.estudiante_id
+      JOIN tutores t ON t.id = e.tutor_id
+
+      UNION ALL
+
+      SELECT
+        mov.id,
+        DATE(mov.fecha) AS dateISO,
+        TIME(mov.fecha) AS time,
+        'EXPENSE' AS type,
+        mov.encargado AS staff,
+        NULL AS tutor,
+        NULL AS student,
+        NULL AS grade,
+        NULL AS parallel,
+        mov.concepto AS concept,
+        NULL AS note,
+        mov.monto AS amount
+      FROM movimientos mov
+      WHERE tipo="GASTO"
+    `;
+
+    // TOTAL
     const [[{ total }]] = await pool.query(
-      `SELECT COUNT(*) AS total FROM pagos`
+      `SELECT COUNT(*) as total FROM (${baseQuery}) as combined`
+    );
+
+    // DATA PAGINADA
+    const [rows] = await pool.query(
+      `
+      SELECT * FROM (${baseQuery}) as combined
+      ORDER BY dateISO DESC, time DESC
+      LIMIT ? OFFSET ?
+      `,
+      [pageSize, offset]
     );
 
     res.json({
@@ -51,6 +82,7 @@ router.get("/", async (req, res) => {
   }
 });
 
+
 // filtro para transacciones, muestra los datos de las tranacciones segun quien lo haya hecho, nombre de tutor 
 // ejemplos para que lo pruebes GET http://localhost:3000/api/transactions/search?tutor=juan 
 // GET http://localhost:3000/api/transactions/search?responsible=caja&tutor=juan
@@ -60,96 +92,160 @@ router.get("/search", async (req, res) => {
       responsible = "",
       tutor = "",
       type = "ALL",
-      concept= "",
+      concept = "",
       from,
       to,
       page = 1,
       pageSize = 10
     } = req.query;
 
-    const offset = (page - 1) * pageSize;
+    const offset = (Number(page) - 1) * Number(pageSize);
 
-    let where = "WHERE 1=1 ";
-    const params = [];
+    let wherePagos = "WHERE 1=1 ";
+    let whereMovimientos = "WHERE mov.tipo = 'GASTO' "; 
 
-    // responsable
+    const paramsPagos = [];
+    const paramsMovimientos = [];
+
+    // =========================
+    // RESPONSABLE
+    // =========================
     if (responsible) {
-      where += "AND p.responsable LIKE ? ";
-      params.push(`%${responsible}%`);
+      wherePagos += "AND p.responsable LIKE ? ";
+      paramsPagos.push(`%${responsible}%`);
+
+      whereMovimientos += "AND mov.encargado LIKE ? ";
+      paramsMovimientos.push(`%${responsible}%`);
     }
 
-    // tutor
+    // =========================
+    // TUTOR (solo pagos)
+    // =========================
     if (tutor) {
-      where += "AND t.nombre LIKE ? ";
-      params.push(`%${tutor}%`);
+      wherePagos += "AND t.nombre LIKE ? ";
+      paramsPagos.push(`%${tutor}%`);
     }
 
-    // fechas
+    // =========================
+    // FECHAS
+    // =========================
     if (from) {
-      where += "AND p.fecha >= ? ";
-      params.push(from);
+      wherePagos += "AND DATE(p.fecha) >= ? ";
+      paramsPagos.push(from);
+
+      whereMovimientos += "AND DATE(mov.fecha) >= ? ";
+      paramsMovimientos.push(from);
     }
 
     if (to) {
-      where += "AND p.fecha <= ? ";
-      params.push(to);
+      wherePagos += "AND DATE(p.fecha) <= ? ";
+      paramsPagos.push(to);
+
+      whereMovimientos += "AND DATE(mov.fecha) <= ? ";
+      paramsMovimientos.push(to);
     }
 
-    // tipo
+    // =========================
+    // TYPE FILTER
+    // =========================
     if (type !== "ALL") {
+
       if (type === "REVERSAL") {
-        where += "AND (p.reversed = 1 OR p.monto < 0) ";
+        wherePagos += "AND (p.reversed = 1 OR p.monto < 0) ";
+        whereMovimientos += "AND 1=0 ";
       }
+
       if (type === "DISCOUNT") {
-        where += "AND (p.monto = 0 AND p.descuento > 0) ";
+        wherePagos += "AND (p.monto = 0 AND p.descuento > 0) ";
+        whereMovimientos += "AND 1=0 ";
       }
+
       if (type === "PAYMENT") {
-        where += "AND (p.monto > 0 AND p.reversed = 0) ";
+        wherePagos += "AND (p.monto > 0 AND p.reversed = 0) ";
+        whereMovimientos += "AND 1=0 ";
+      }
+
+      if (type === "EXPENSE") {
+        wherePagos += "AND 1=0 ";
+        whereMovimientos += "AND mov.tipo = 'GASTO' ";
       }
     }
+
+    // =========================
+    // CONCEPT
+    // =========================
     if (concept) {
-      where += "AND CONCAT('Mensualidad ', m.mes, ' ', m.anio) = ? ";
-      params.push(concept);
+      wherePagos += "AND CONCAT('Mensualidad ', m.mes, ' ', m.anio) = ? ";
+      paramsPagos.push(concept);
+
+      whereMovimientos += "AND mov.concepto = ? ";
+      paramsMovimientos.push(concept);
     }
 
-    // total
-    const [[{ total }]] = await pool.query(
-      `SELECT COUNT(*) as total
-       FROM pagos p
-       JOIN mensualidades m ON m.id = p.mensualidad_id
-       JOIN estudiantes e ON e.id = m.estudiante_id
-       JOIN tutores t ON t.id = e.tutor_id
-       ${where}`,
-      params
-    );
-
-    // data
-    const [rows] = await pool.query(
-      `SELECT 
+    // =========================
+    // QUERY UNIFICADA
+    // =========================
+    const baseQuery = `
+      SELECT 
         p.id,
-        p.fecha,
+        DATE(p.fecha) AS dateISO,
         TIME(p.fecha) AS time,
-        p.responsable as staff,
-        t.nombre as tutor,
-        e.nombre as student,
-        e.grado as grade,
-        e.paralelo as parallel,
-        CONCAT('Mensualidad ', m.mes, ' ', m.anio) AS concept,
-        p.nota as note,
         CASE 
           WHEN p.reversed = 1 OR p.monto < 0 THEN 'REVERSAL'
           WHEN p.monto = 0 AND p.descuento > 0 THEN 'DISCOUNT'
           ELSE 'PAYMENT'
         END AS type,
-        (p.monto + p.descuento) as amount
-        FROM pagos p
-        JOIN mensualidades m ON m.id = p.mensualidad_id
-        JOIN estudiantes e ON e.id = m.estudiante_id
-        JOIN tutores t ON t.id = e.tutor_id
-        ${where}
-        ORDER BY p.id DESC
-        LIMIT ? OFFSET ?`,
-      [...params, Number(pageSize), Number(offset)]
+        p.responsable AS staff,
+        t.nombre AS tutor,
+        e.nombre AS student,
+        e.grado AS grade,
+        e.paralelo AS parallel,
+        CONCAT('Mensualidad ', m.mes, ' ', m.anio) AS concept,
+        p.nota AS note,
+        (p.monto + p.descuento) AS amount
+      FROM pagos p
+      JOIN mensualidades m ON m.id = p.mensualidad_id
+      JOIN estudiantes e ON e.id = m.estudiante_id
+      JOIN tutores t ON t.id = e.tutor_id
+      ${wherePagos}
+
+      UNION ALL
+
+      SELECT
+        mov.id,
+        DATE(mov.fecha) AS dateISO,
+        TIME(mov.fecha) AS time,
+        'EXPENSE' AS type,
+        mov.encargado AS staff,
+        NULL AS tutor,
+        NULL AS student,
+        NULL AS grade,
+        NULL AS parallel,
+        mov.concepto AS concept,
+        NULL AS note,
+        mov.monto AS amount
+      FROM movimientos mov
+      ${whereMovimientos}
+    `;
+
+    // =========================
+    // TOTAL
+    // =========================
+    const [[{ total }]] = await pool.query(
+      `SELECT COUNT(*) as total FROM (${baseQuery}) as combined`,
+      [...paramsPagos, ...paramsMovimientos]
+    );
+
+    // =========================
+    // DATA PAGINADA
+    // =========================
+    const [rows] = await pool.query(
+      `
+      SELECT * FROM (${baseQuery}) as combined
+      ORDER BY dateISO DESC, time DESC
+      LIMIT ? OFFSET ?
+      `,
+      [...paramsPagos, ...paramsMovimientos, Number(pageSize), offset]
     );
 
     res.json({
@@ -161,26 +257,12 @@ router.get("/search", async (req, res) => {
 
   } catch (error) {
     console.error(error);
-    apiError(res, "BUSINESS_RULE", "Error obteniendo historial");
+    res.status(500).json({
+      error: "Error obteniendo historial"
+    });
   }
 });
 
-router.get("/concepts", async (req, res) => {
-  try {
-    const [rows] = await pool.query(`
-      SELECT DISTINCT 
-        CONCAT('Mensualidad ', m.mes, ' ', m.anio) AS concept
-      FROM pagos p
-      JOIN mensualidades m ON m.id = p.mensualidad_id
-      ORDER BY concept ASC
-    `);
-
-    res.json(rows.map(r => r.concept));
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Error obteniendo conceptos" });
-  }
-});
 
 router.get("/balance", async (req, res) => {
   try {

@@ -123,31 +123,33 @@ router.post("/payment-concepts/:conceptId/movements", async (req, res) => {
   }
 });
 
-// Revertir
 router.post("/movements/:movementId/reversal", async (req, res) => {
+  const conn = await pool.getConnection();
 
   try {
     const { movementId } = req.params;
     const { reason = null, responsible = null } = req.body;
 
-    // 1️⃣ buscar movimiento original
-    const [[movement]] = await pool.query(
+    await conn.beginTransaction();
+
+    const [[movement]] = await conn.query(
       `SELECT * FROM pagos WHERE id = ?`,
       [movementId]
     );
 
     if (!movement) {
+      await conn.rollback();
       return apiError(res, "NOT_FOUND", "Movimiento no existe");
     }
 
     if (movement.reversed) {
+      await conn.rollback();
       return apiError(res, "CONFLICT", "El movimiento ya fue revertido");
     }
 
-    // 2️⃣ crear reverso (negativo)
     const fecha = new Date().toISOString().slice(0, 10);
 
-    const [result] = await pool.query(
+    const [result] = await conn.query(
       `INSERT INTO pagos
         (mensualidad_id, fecha, monto, descuento, nota, responsable, reversed)
        VALUES (?, ?, ?, ?, ?, ?, 0)`,
@@ -161,29 +163,41 @@ router.post("/movements/:movementId/reversal", async (req, res) => {
       ]
     );
 
-    // 3️⃣ marcar original como revertido
-    await pool.query(
+    await conn.query(
       `UPDATE pagos SET reversed = 1 WHERE id = ?`,
       [movementId]
     );
 
-    // 4️⃣ recalcular pendiente
-    const [[concept]] = await pool.query(
-      `SELECT monto FROM mensualidades WHERE id = ?`,
-      [movement.mensualidad_id]
-    );
+    if (movement.descuento > 0) {
+      await conn.query(
+        `
+        UPDATE mensualidades
+        SET discount_amount = discount_amount - ?
+        WHERE id = ?
+        `,
+        [movement.descuento, movement.mensualidad_id]
+      );
+    }
 
-    const [[sum]] = await pool.query(
-      `SELECT COALESCE(SUM(monto + descuento),0) AS total
-       FROM pagos
-       WHERE mensualidad_id = ?`,
-      [movement.mensualidad_id]
-    );
+    if (movement.monto > 0) {
+      await conn.query(
+        `
+        INSERT INTO movimientos (tipo, concepto, monto, encargado)
+        VALUES ('GASTO', ?, ?, ?)
+        `,
+        [
+          `Reverso pago mensualidad ID ${movement.mensualidad_id}`,
+          movement.monto,
+          responsible || "Sistema"
+        ]
+      );
+    }
 
-      const newPending = await updateEstadoMensualidad(
+    const newPending = await updateEstadoMensualidad(
       movement.mensualidad_id
     );
 
+    await conn.commit();
 
     res.json({
       ok: true,
@@ -192,8 +206,11 @@ router.post("/movements/:movementId/reversal", async (req, res) => {
     });
 
   } catch (error) {
+    await conn.rollback();
     console.error(error);
     apiError(res, "BUSINESS_RULE", "No se pudo revertir");
+  } finally {
+    conn.release();
   }
 });
 

@@ -242,7 +242,7 @@ router.get("/:tutorId/pay-view", async (req, res) => {
     for (const child of children) {
 
       const [concepts] = await pool.query(
-        `SELECT id, mes, anio, monto
+        `SELECT id, mes, anio, total AS monto
          FROM mensualidades
          WHERE estudiante_id = ? AND anio = ?`,
         [child.id, year]
