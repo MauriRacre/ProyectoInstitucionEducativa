@@ -79,6 +79,13 @@ export class ModalAbono {
     return this.descuento > this.subtotal;
   }
 
+  get estudianteNombre(): string {
+    const id = Number(this.form.get('estudiante')?.value);
+    const encontrado = this.estudiantes.find(e => e.id === id);
+    return encontrado?.name ?? '';
+  }
+
+
   // =====================
   // Meses (chips)
   // =====================
@@ -145,7 +152,7 @@ export class ModalAbono {
     if (this.form.invalid || this.descuentoExcedeSubtotal) {
       return;
     }
-
+    console.log(this.form.value);
     const v = this.form.getRawValue() as {
       estudiante: string;
       categoria: string;
@@ -169,7 +176,7 @@ export class ModalAbono {
         total: this.total,
         destino: v.destino,
       });
-
+      
     } catch (e) {
       this.errorMsg = 'No se pudo guardar el cargo. Intenta nuevamente.';
     } finally {
