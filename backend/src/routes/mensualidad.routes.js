@@ -4,39 +4,18 @@ const pool = require('../config/db');
 const { apiError } = require("../utils/apiError");
 
 // Listar mensualidades de un estudiante
-router.get('/estudiante/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const [rows] = await pool.query(
-     `SELECT 
-        id,
-        estudiante_id,
-        mes,
-        anio,
-        base_amount,
-        extra_amount,
-        discount_amount,
-        total,
-        estado
-      FROM mensualidades 
-      WHERE estudiante_id = ?
-      ORDER BY estado = 'PAGADO', anio ASC, mes ASC`,
-      [id]
-    );
-
-    res.json(rows);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ ok: false });
-  }
-});
-
-// Crear mensualidad
 router.post('/', async (req, res) => {
   try {
 
-    const { estudiante_id, period, base_amount = 490, extra_amount = 0, discount_amount = 0 } = req.body;
+    const { 
+      estudiante_id, 
+      period, 
+      base_amount = 490, 
+      extra_amount = 0, 
+      discount_amount = 0,
+      tipo = "MENSUALIDAD",
+      nombre_servicio = null
+    } = req.body;
 
     if (!period) {
       return apiError(res, "VALIDATION_ERROR", "Periodo requerido");
@@ -52,13 +31,36 @@ router.post('/', async (req, res) => {
       return apiError(res, "VALIDATION_ERROR", "Mes inválido");
     }
 
+    if (tipo === "SERVICIO" && !nombre_servicio) {
+      return apiError(res, "VALIDATION_ERROR", "Nombre del servicio requerido");
+    }
+
+    // ✅ Validación descuento
+    if (discount_amount < 0) {
+      return apiError(res, "VALIDATION_ERROR", "Descuento inválido");
+    }
+
+    if (discount_amount > (base_amount + extra_amount)) {
+      return apiError(res, "VALIDATION_ERROR", "El descuento no puede ser mayor al monto");
+    }
+
     const total = base_amount + extra_amount - discount_amount;
 
     const [result] = await pool.query(
       `INSERT INTO mensualidades 
-        (estudiante_id, mes, anio, base_amount, extra_amount, discount_amount, total)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [estudiante_id, month, year, base_amount, extra_amount, discount_amount, total]
+        (estudiante_id, mes, anio, base_amount, extra_amount, discount_amount, total, tipo, nombre_servicio, estado)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDIENTE')`,
+      [
+        estudiante_id,
+        month,
+        year,
+        base_amount,
+        extra_amount,
+        discount_amount,
+        total,
+        tipo,
+        tipo === "SERVICIO" ? nombre_servicio : null
+      ]
     );
 
     res.status(201).json({ id: result.insertId });
@@ -69,6 +71,8 @@ router.post('/', async (req, res) => {
   }
 });
 
+
+
 router.get('/deudores', async (req, res) => {
   try {
     const [rows] = await pool.query(`
@@ -76,10 +80,16 @@ router.get('/deudores', async (req, res) => {
         e.nombre AS estudiante,
         m.mes,
         m.anio,
-        m.total
+        m.total,
+        m.tipo,
+        CASE 
+          WHEN m.tipo = 'SERVICIO' THEN m.nombre_servicio
+          ELSE 'Mensualidad'
+        END AS concepto
       FROM mensualidades m
       JOIN estudiantes e ON e.id = m.estudiante_id
       WHERE m.estado = 'PENDIENTE'
+      ORDER BY m.anio ASC, m.mes ASC
     `);
 
     res.json(rows);
@@ -88,6 +98,7 @@ router.get('/deudores', async (req, res) => {
     res.status(500).json({ ok: false });
   }
 });
+
 
 
 module.exports = router;
