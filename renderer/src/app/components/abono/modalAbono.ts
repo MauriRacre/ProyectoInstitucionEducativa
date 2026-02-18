@@ -154,7 +154,7 @@ export class ModalAbono {
     }
     console.log(this.form.value);
     const v = this.form.getRawValue() as {
-      estudiante: string;
+      estudiante: number;
       categoria: string;
       meses: string[];
       monto: number;

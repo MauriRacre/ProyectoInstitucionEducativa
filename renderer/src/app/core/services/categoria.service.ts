@@ -33,6 +33,9 @@ export class CategoryService{
     getAllTwo():Observable<CategoryDTO[]>{
         return this.http.get<CategoryDTO[]>(this.baseUrl2);
     }
+    getCategorias(): Observable<CategoryDTO[]>{
+        return this.http.get<CategoryDTO[]>(`${this.baseUrl2}/categorias/modal`);
+    }
     /**GET by Id */
     getById(id: number): Observable<CategoryDTO>{
         return this.http.get<CategoryDTO>(`${this.baseUrl2}/${id}`);

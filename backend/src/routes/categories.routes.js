@@ -10,17 +10,35 @@ router.get("/", async (req, res) => {
   const [rows] = await pool.query("SELECT * FROM categorias");
   res.json(rows);
 });
+
+router.get("/categorias/modal", async (req, res) => {
+  try {
+    const [rows] = await pool.query("SELECT * FROM categorias");
+
+    const categorias = rows;
+
+    const mensualidad = {
+      id: 0, 
+      name: "Mensualidad",
+      type: "SERVICE",
+      active: 1
+    };
+
+    res.json([mensualidad, ...categorias]);
+
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener categorías" });
+  }
+});
 router.get("/allCourses", async (req, res) => {
   try {
 
-    // Cursos formales (grado + paralelo)
     const [grados] = await pool.query(`
       SELECT DISTINCT CONCAT(grado, ' ', paralelo) AS nombre
       FROM estudiantes
       ORDER BY grado, paralelo
     `);
 
-    // Cursos especiales (tabla categorias tipo curso)
     const [especiales] = await pool.query(`
       SELECT name AS nombre
       FROM categorias

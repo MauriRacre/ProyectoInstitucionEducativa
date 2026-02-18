@@ -242,7 +242,7 @@ router.get("/:tutorId/pay-view", async (req, res) => {
     for (const child of children) {
 
       const [concepts] = await pool.query(
-        `SELECT id, mes, anio, total AS monto
+        `SELECT id, mes, anio, total AS monto, tipo, nombre_servicio
          FROM mensualidades
          WHERE estudiante_id = ? AND anio = ?`,
         [child.id, year]
@@ -260,7 +260,10 @@ router.get("/:tutorId/pay-view", async (req, res) => {
         );
 
         const pending = c.monto - sum.total;
-
+        const conceptoLabel =
+          c.tipo === "MENSUALIDAD"
+            ? "Mensualidad"
+            : c.nombre_servicio;
         let history = [];
 
         if (includeHistory === "true") {
@@ -275,7 +278,7 @@ router.get("/:tutorId/pay-view", async (req, res) => {
             id: r.id,
             dateISO: r.fecha,
             type: "PAYMENT",
-            conceptLabel: `Mensualidad ${c.mes}/${c.anio}`,
+            conceptLabel: `${conceptoLabel} ${c.mes}/${c.anio}`,
             paid: r.monto,
             discount: r.descuento,
             appliedTotal: r.monto + r.descuento,
@@ -285,12 +288,12 @@ router.get("/:tutorId/pay-view", async (req, res) => {
             reversed: false
           }));
         }
-
+        
         childConcepts.push({
           id: c.id,
           studentId: child.id,
-          categoryId: "MONTHLY",
-          concept: `Mensualidad ${c.mes}/${c.anio}`,
+          categoryId: c.tipo,
+          concept: `${conceptoLabel} ${c.mes}/${c.anio}`,
           period: { year: c.anio, month: c.mes },
           amountTotal: c.monto,
           pending,

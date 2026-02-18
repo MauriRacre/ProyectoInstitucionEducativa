@@ -11,6 +11,8 @@ export interface CreateMensualidadDTO {
     base_amount?: number;
     extra_amount?: number;
     discount_amount?: number;
+    tipo?: "MENSUALIDAD" | "SERVICIO";
+    nombre_servicio?: string | null;
 }
 
 export interface MovementDTO {

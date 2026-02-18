@@ -480,7 +480,7 @@ export class PayPage implements OnInit{
         this.selectedIds.clear();
         this.draftDiscount = {};
         this.draftPay = {};
-        this.fetchPayView(this.idTutor); // refresca desde backend real
+        this.fetchPayView(this.idTutor); 
       },
       error: err => {
         console.error(err);
@@ -524,7 +524,7 @@ export class PayPage implements OnInit{
   categorias: string[] = [];
   
   private fetchCategorias() {
-    this.categoryapi.getAll().subscribe(res => {
+    this.categoryapi.getCategorias().subscribe(res => {
       this.categorias = res.map(c => c.name);
     });
   }
@@ -558,8 +558,9 @@ export class PayPage implements OnInit{
       const descuentoPorMes = Math.round(
         (payload.descuento / payload.meses.length) * 100
       ) / 100;
-
+      
       for (const mes of payload.meses) {
+        const esMensualidad = payload.categoria === "Mensualidad";
 
         const mensualidad = await firstValueFrom(this.paymentApi.createMensualidad({
           estudiante_id: payload.estudiante,
@@ -569,7 +570,9 @@ export class PayPage implements OnInit{
           },
           base_amount: payload.montoUnitario,
           extra_amount: 0,
-          discount_amount: descuentoPorMes
+          discount_amount: descuentoPorMes,
+          tipo: esMensualidad ? "MENSUALIDAD" : "SERVICIO",
+          nombre_servicio: esMensualidad ? null : payload.categoria
         }));
         if (payload.destino === 'PAGAR_AHORA') {
 

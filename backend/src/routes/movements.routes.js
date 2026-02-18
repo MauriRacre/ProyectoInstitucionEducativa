@@ -9,7 +9,7 @@ const { sendPaymentMail } = require("../utils/mailer");
 router.post("/payment-concepts/:conceptId/movements", async (req, res) => {
 
   try {
-    const { conceptId } = req.params;
+    const conceptId = Number(req.params.conceptId);
     const {
       paid = 0,
       discount = 0,
