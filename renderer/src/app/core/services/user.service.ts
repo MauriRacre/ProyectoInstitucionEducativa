@@ -35,8 +35,6 @@ export class UserService{
     create(payload: {
         nombre: string;
         username: string;
-        password: string;
-        rol: string;
         email: string
     }): Observable<any> {
         return this.http.post<any>(

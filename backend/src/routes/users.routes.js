@@ -55,16 +55,15 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-
 router.post("/", async (req, res) => {
   try {
-    const { nombre, username, rol, email } = req.body;
+    const { nombre, username, email } = req.body;
     const ping = await generateUniquePing(pool);
 
     const [result] = await pool.query(
       `INSERT INTO usuarios (nombre, username, rol, email, ping)
-       VALUES (?, ?, 'USER', ?, ?)`,
-      [nombre, username, rol, email, ping]
+      VALUES (?, ?, 'USER', ?, ?)`,
+      [nombre, username, email, ping]
     );
 
     // Enviar correo
@@ -98,8 +97,8 @@ router.put("/:id", async (req, res) => {
 
     await pool.query(
       `UPDATE usuarios
-       SET nombre = ?, username = ?, rol = ?, email = ?
-       WHERE id = ?`,
+        SET nombre = ?, username = ?, rol = ?, email = ?
+        WHERE id = ?`,
       [name, username, rol, email, id]
     );
 

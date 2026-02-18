@@ -8,9 +8,9 @@ router.post("/login", async (req, res) => {
     const { username, ping } = req.body;
 
     const [[user]] = await pool.query(
-      `SELECT id, nombre, rol
-       FROM usuarios
-       WHERE username = ? AND ping = ?`,
+      `SELECT id, nombre, username, rol
+        FROM usuarios
+        WHERE username = ? AND ping = ?`,
       [username, ping]
     );
 

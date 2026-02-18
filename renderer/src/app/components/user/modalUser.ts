@@ -56,9 +56,9 @@ export class ModalUser implements OnChanges {
 
     private setFormFromValue(v: any): void {
         this.form.patchValue({
-        name: v.name ?? '',
-        username: v.username ?? '',
-        email: v.email ?? '',
+            name: v.name ?? '',
+            username: v.username ?? '',
+            email: v.email ?? '',
         });
 
         this.form.markAsPristine();
@@ -120,7 +120,7 @@ export class ModalUser implements OnChanges {
         }
 
         const payload = {
-            name: this.form.value.name.trim(),
+            nombre: this.form.value.name.trim(),
             username: this.form.value.username.trim(),
             email: this.form.value.email.trim(),
         };
