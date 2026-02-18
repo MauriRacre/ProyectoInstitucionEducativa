@@ -73,7 +73,7 @@
 
           <button
             type="button"
-            (click)="newTransaction()"
+            (click)="openCreateGasto()"
             class="inline-flex items-center gap-2 rounded-xl bg-celeste px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-azul"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" class="h-5 w-5">
@@ -537,3 +537,9 @@
     </div>
   </div>
 </div>
+<app-gasto-modal
+  [open]="showGastoModal"
+  [mode]="gastoMode"
+  (save)="onSaveGasto($event)"
+  (cancel)="onCancelGasto()"
+></app-gasto-modal>

@@ -8,7 +8,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { ToastService } from '../../core/toast/toast.service';
 import { ModalService } from '../../core/swal/swal.service';
-
+import { GastoModal, ExpenseMode, ExpenseFormValue } from '../../components/gasto/modalGasto';
 type TxType = 'PAYMENT' | 'DISCOUNT' | 'REVERSAL';
 type TabKey = 'transacciones' | 'estadisticas' | 'nomina';
 
@@ -19,11 +19,10 @@ interface Filters {
   to: string;
   concept: string;
 }
-
 @Component({
   selector: 'app-history',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, GastoModal],
   templateUrl: './history.page.html',
 })
 export class HistoryPage implements OnInit {
@@ -588,4 +587,60 @@ export class HistoryPage implements OnInit {
     this.nominaPage = p;
     this.loadNominaStudents();
   }
+  /** MODAL GASTO */
+  private get currentUserName(): string {
+    const raw = localStorage.getItem('user');
+    if (!raw) return 'SISTEMA';
+
+    try {
+      const user = JSON.parse(raw);
+      return user?.nombre || user?.username || 'SISTEMA';
+    } catch {
+      return 'SISTEMA';
+    }
+  }
+  showGastoModal = false;
+
+  gastoMode: ExpenseMode = 'create';
+
+  gastoEditData?: ExpenseFormValue;
+
+  gastos: ExpenseFormValue[] = [];
+  openCreateGasto() {
+    this.gastoMode = 'create';
+    this.gastoEditData = undefined;
+    this.showGastoModal = true;
+  }
+  openEditGasto(gasto: ExpenseFormValue) {
+    this.gastoMode = 'edit';
+    this.gastoEditData = { ...gasto };
+    this.showGastoModal = true;
+  }
+  async onSaveGasto(data: ExpenseFormValue) {
+
+    const payload = {
+      encargado: this.currentUserName,
+      concepto: data.concept,
+      monto: data.monto
+    };
+
+    this.txService.createGasto(payload).subscribe({
+      next: () => {
+        this.toast.success('Gasto registrado correctamente');
+        this.showGastoModal = false;
+        this.loadTransactions();
+      },
+      error: (err) => {
+        this.showGastoModal = false;
+        console.error(err);
+        this.toast.error(
+          err?.error?.message || 'Error registrando gasto'
+        );
+      }
+    });
+  }
+  onCancelGasto() {
+    this.showGastoModal = false;
+  }
+
 }
