@@ -9,7 +9,7 @@ router.get('/estudiante/:id', async (req, res) => {
     const { id } = req.params;
 
     const [rows] = await pool.query(
-      `SELECT 
+     `SELECT 
         id,
         estudiante_id,
         mes,
@@ -20,7 +20,8 @@ router.get('/estudiante/:id', async (req, res) => {
         total,
         estado
       FROM mensualidades 
-      WHERE estudiante_id = ?`,
+      WHERE estudiante_id = ?
+      ORDER BY estado = 'PAGADO', anio ASC, mes ASC`,
       [id]
     );
 
