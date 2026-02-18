@@ -9,7 +9,7 @@ import autoTable from 'jspdf-autotable';
 import { ToastService } from '../../core/toast/toast.service';
 import { ModalService } from '../../core/swal/swal.service';
 import { GastoModal, ExpenseMode, ExpenseFormValue } from '../../components/gasto/modalGasto';
-type TxType = 'PAYMENT' | 'DISCOUNT' | 'REVERSAL';
+type TxType = 'PAYMENT' | 'EXPENSE' | 'REVERSAL';
 type TabKey = 'transacciones' | 'estadisticas' | 'nomina';
 
 
@@ -98,9 +98,10 @@ export class HistoryPage implements OnInit {
     this.txService.getTransactions(this.page, this.pageSize)
       .subscribe({
         next: (res) => {
+          console.log(res);
           this.transacciones = res.items.map(x => ({
             id: x.id,
-            dateISO: x.dateISO,
+            dateISO: x.dateISO??null,
             time: x.time ?? '',
             type: x.type,
             staff: x.staff ?? x.responsable ?? '',
@@ -330,6 +331,7 @@ export class HistoryPage implements OnInit {
       pageSize: 10000   
     }).subscribe({
       next: res => {
+        console.log(res);
         this.generatePdf(res.items);
       }
     });
@@ -363,7 +365,7 @@ export class HistoryPage implements OnInit {
       .reduce((sum, x) => sum + Number(x.amount ?? 0), 0);
 
     const totalDescuentos = data
-      .filter(x => x.type === 'DISCOUNT')
+      .filter(x => x.type === 'EXPENSE')
       .reduce((sum, x) => sum + Number(x.amount ?? 0), 0);
 
     const totalReversiones = data
@@ -387,7 +389,7 @@ export class HistoryPage implements OnInit {
       const amount = Number(x.amount ?? 0);
 
       return [
-        formattedDate,
+        this.formatDate(x.dateISO),
         this.typeLabel(x.type) ?? '',
         x.staff ?? '',
         x.tutor ?? '',
@@ -495,7 +497,7 @@ export class HistoryPage implements OnInit {
   typeLabel(t: TxType): string {
     switch (t) {
       case 'PAYMENT': return 'Pago';
-      case 'DISCOUNT': return 'Descuento';
+      case 'EXPENSE': return 'Gasto';
       case 'REVERSAL': return 'Reverso';
     }
   }
@@ -503,15 +505,25 @@ export class HistoryPage implements OnInit {
     return t === 'PAYMENT' ? '+' : '-';
   }
 
-  formatDate(dateISO: string): string {
-    const d = new Date(dateISO + 'T00:00:00');
-    return d.toLocaleDateString('es-BO', { day: '2-digit', month: 'long', year: 'numeric' });
-  }
+  formatDate(dateISO: string | null | undefined): string {
+  if (!dateISO) return '';
+
+  const date = new Date(dateISO);
+
+  if (isNaN(date.getTime())) return '';
+
+  return date.toLocaleDateString('es-BO', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+}
+
 
   typePillClass(t: TxType): string {
     switch (t) {
       case 'PAYMENT': return 'border-emerald-200 bg-emerald-50 text-emerald-700';
-      case 'DISCOUNT': return 'border-amber-200 bg-amber-50 text-amber-700';
+      case 'EXPENSE': return 'border-amber-200 bg-amber-50 text-amber-700';
       case 'REVERSAL': return 'border-red-200 bg-red-50 text-red-700';
     }
   }
@@ -519,7 +531,7 @@ export class HistoryPage implements OnInit {
   amountClass(t: TxType): string {
     switch (t) {
       case 'PAYMENT': return 'text-emerald-700';
-      case 'DISCOUNT': return 'text-amber-700';
+      case 'EXPENSE': return 'text-amber-700';
       case 'REVERSAL': return 'text-red-700';
     }
   }

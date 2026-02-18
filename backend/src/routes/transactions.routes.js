@@ -282,5 +282,21 @@ router.get("/balance", async (req, res) => {
   }
 });
 
+router.get("/concepts", async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT DISTINCT 
+        CONCAT('Mensualidad ', m.mes, ' ', m.anio) AS concept
+      FROM pagos p
+      JOIN mensualidades m ON m.id = p.mensualidad_id
+      ORDER BY concept ASC
+    `);
+
+    res.json(rows.map(r => r.concept));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error obteniendo conceptos" });
+  }
+});
 
 module.exports = router;

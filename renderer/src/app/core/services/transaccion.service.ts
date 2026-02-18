@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from "@angular/common/http";
 import { enviroment } from "../../../environment/enviroment";
 import { Observable } from "rxjs";
 
-export type TransactionType = 'PAYMENT' | 'DISCOUNT' | 'REVERSAL';
+export type TransactionType = 'PAYMENT' | 'EXPENSE' | 'REVERSAL';
 export interface CreateExpenseDTO {
     encargado: string;
     concepto: string;
