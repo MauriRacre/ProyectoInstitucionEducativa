@@ -182,4 +182,23 @@ router.get("/concepts", async (req, res) => {
   }
 });
 
+router.get("/balance", async (req, res) => {
+  try {
+    const [[result]] = await pool.query(`
+      SELECT 
+        SUM(CASE WHEN tipo = 'INGRESO' THEN monto ELSE 0 END) -
+        SUM(CASE WHEN tipo = 'GASTO' THEN monto ELSE 0 END) 
+        AS balance
+      FROM movimientos
+    `);
+
+    res.json({ balance: result.balance || 0 });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error obteniendo balance" });
+  }
+});
+
+
 module.exports = router;

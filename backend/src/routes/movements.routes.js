@@ -66,6 +66,21 @@ router.post("/payment-concepts/:conceptId/movements", async (req, res) => {
       [conceptId, fecha, paid, discount, note, responsible]
     );
 
+    // Registrar ingreso en movimientos
+    if (paid > 0) {
+      await pool.query(
+        `
+        INSERT INTO movimientos (tipo, concepto, monto, encargado)
+        VALUES ('INGRESO', ?, ?, ?)
+        `,
+        [
+          `Pago mensualidad ID ${conceptId}`,
+          paid,
+          responsible || "Sistema"
+        ]
+      );
+    }
+
      // obtener tutor y alumno
     const [[info]] = await pool.query(
       `SELECT 
@@ -179,6 +194,38 @@ router.post("/movements/:movementId/reversal", async (req, res) => {
   } catch (error) {
     console.error(error);
     apiError(res, "BUSINESS_RULE", "No se pudo revertir");
+  }
+});
+
+router.post("/gasto", async (req, res) => {
+  try {
+    const { encargado, concepto, monto } = req.body;
+
+    if (!encargado || !concepto || !monto) {
+      return res.status(400).json({
+        message: "Encargado, concepto y monto son obligatorios"
+      });
+    }
+
+    if (monto <= 0) {
+      return res.status(400).json({
+        message: "El monto debe ser mayor a 0"
+      });
+    }
+
+    await pool.query(
+      `
+      INSERT INTO movimientos (tipo, concepto, monto, encargado)
+      VALUES ('GASTO', ?, ?, ?)
+      `,
+      [concepto, monto, encargado]
+    );
+
+    res.json({ message: "Gasto registrado correctamente" });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error registrando gasto" });
   }
 });
 
