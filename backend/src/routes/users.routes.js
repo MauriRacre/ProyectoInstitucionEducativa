@@ -4,6 +4,9 @@ const pool = require("../config/db");
 const { apiError } = require("../utils/apiError");
 const { generateUniquePing } = require("../utils/generatePing");
 const { sendMail } = require("../utils/mailer");
+const { sendRecoveryMail } = require("../utils/mailer");
+
+
 
 router.get("/", async (req, res) => {
   try {
@@ -61,8 +64,8 @@ router.post("/", async (req, res) => {
     const ping = await generateUniquePing(pool);
 
     const [result] = await pool.query(
-      `INSERT INTO usuarios (nombre, username, rol, email, ping)
-      VALUES (?, ?, 'USER', ?, ?)`,
+      `INSERT INTO usuarios (nombre, username, email, rol, ping)
+       VALUES (?, ?, ?,'USER', ?)`,
       [nombre, username, email, ping]
     );
 
@@ -107,6 +110,48 @@ router.put("/:id", async (req, res) => {
   } catch (error) {
     console.error(error);
     apiError(res, "BUSINESS_RULE", "Error actualizando usuario");
+  }
+});
+
+router.post("/recover-ping", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Correo requerido" });
+    }
+
+    const [[user]] = await pool.query(
+      "SELECT id, nombre FROM usuarios WHERE email = ?",
+      [email]
+    );
+
+    if (!user) {
+      // Respuesta genérica por seguridad
+      return res.json({
+        message: "Si el correo está registrado, recibirás un nuevo PIN."
+      });
+    }
+
+    // Generar nuevo PIN único
+    const nuevoPing = await generateUniquePing(pool);
+
+    // Actualizar en BD
+    await pool.query(
+      "UPDATE usuarios SET ping = ? WHERE id = ?",
+      [nuevoPing, user.id]
+    );
+
+    // Enviar correo
+    await sendRecoveryMail(email, user.nombre, nuevoPing);
+
+    res.json({
+      message: "Si el correo está registrado, recibirás un nuevo PIN."
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error recuperando PIN" });
   }
 });
 
