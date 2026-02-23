@@ -3,7 +3,25 @@ const router = express.Router();
 const pool = require('../config/db');
 const { apiError } = require("../utils/apiError");
 
+router.get("/total", async (req, res) => {
+  try {
+
+    const [[row]] = await pool.query(`
+      SELECT COUNT(*) AS total
+      FROM estudiantes
+    `);
+
+    return res.json({
+      total: row.total
+    });
+
+  } catch (error) {
+    console.error("ERROR EN /students/total:", error);
+    return apiError(res, "BUSINESS_RULE", "Error obteniendo total de estudiantes");
+  }
+});
 // Listar estudiantes por tutor
+
 router.get('/tutor/:tutorId', async (req, res) => {
   try {
     const { tutorId } = req.params;

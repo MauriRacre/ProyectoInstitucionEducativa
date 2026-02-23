@@ -143,7 +143,20 @@ router.get("/search", async (req, res) => {
     apiError(res, "BUSINESS_RULE", "Error en búsqueda");
   }
 });
-  
+router.get("/total", async (req, res) => {
+  try {
+
+    const [[{ total }]] = await pool.query(
+      `SELECT COUNT(*) AS total FROM tutores`
+    );
+
+    res.json({ total });
+
+  } catch (error) {
+    console.error(error);
+    apiError(res, "BUSINESS_RULE", "Error obteniendo total de tutores");
+  }
+});
 
 router.get("/:tutorId", async (req, res) => {
   try {

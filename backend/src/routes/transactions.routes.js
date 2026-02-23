@@ -82,6 +82,76 @@ router.get("/", async (req, res) => {
   }
 });
 
+router.get("/ingresos-mes", async (req, res) => {
+  try {
+    const year = Number(req.query.year);
+
+    if (!year) {
+      return apiError(res, "VALIDATION_ERROR", "Año requerido");
+    }
+    const months = {
+      1: "Enero",
+      2: "Febrero",
+      3: "Marzo",
+      4: "Abril",
+      5: "Mayo",
+      6: "Junio",
+      7: "Julio",
+      8: "Agosto",
+      9: "Septiembre",
+      10: "Octubre",
+      11: "Noviembre",
+      12: "Diciembre"
+    };
+
+    const result = {};
+
+    Object.values(months).forEach(m => {
+      result[m] = 0;
+    });
+
+    const [monthly] = await pool.query(`
+      SELECT 
+        MONTH(fecha) AS month,
+        SUM(monto + descuento) AS total
+      FROM pagos  
+      WHERE YEAR(fecha) = ?
+      GROUP BY MONTH(fecha)
+    `, [year]);
+    const [services] = await pool.query(`
+      SELECT 
+        MONTH(fecha) AS month,
+        SUM(monto + descuento) AS total
+      FROM pagos
+      WHERE YEAR(fecha) = ?
+      GROUP BY MONTH(fecha)
+    `, [year]);
+    const mergeData = {};
+
+    for (const row of monthly) {
+      mergeData[row.month] = Number(row.total);
+    }
+
+    for (const row of services) {
+      if (mergeData[row.month]) {
+        mergeData[row.month] += Number(row.total);
+      } else {
+        mergeData[row.month] = Number(row.total);
+      }
+    }
+    for (let i = 1; i <= 12; i++) {
+      if (mergeData[i]) {
+        result[months[i]] = mergeData[i];
+      }
+    }
+
+    return res.json(result);
+
+  } catch (error) {
+    console.error("ERROR EN income-by-month:", error);
+    return apiError(res, "BUSINESS_RULE", "Error obteniendo ingresos por mes");
+  }
+});
 
 // filtro para transacciones, muestra los datos de las tranacciones segun quien lo haya hecho, nombre de tutor 
 // ejemplos para que lo pruebes GET http://localhost:3000/api/transactions/search?tutor=juan 
