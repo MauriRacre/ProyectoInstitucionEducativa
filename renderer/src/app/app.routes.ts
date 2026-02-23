@@ -7,9 +7,9 @@ import { LoginPage } from './feactures/login/login.page';
 import { authGuard } from './core/services/auth.guard';
 import { roleGuard } from './core/services/role.guard';
 import { PrivateLayoutComponent } from './layouts/layout.component';
+import { RegisterPage } from './feactures/register/register.page';
 export const routes: Routes = [
     { path: 'login', component: LoginPage },
-
     {
         path: '',
         component: PrivateLayoutComponent,
@@ -18,6 +18,7 @@ export const routes: Routes = [
         { path: '', component: Directory },
         { path: 'cobro-tutor/:id', component: PayPage },
         { path: 'history', component: HistoryPage },
+        { path: 'register', component: RegisterPage},
         {
             path: 'settings',
             component: SettingsComponent,
