@@ -4,7 +4,7 @@
         <div class="flex flex-col md:flex-row justify-between mb-4">
             <div class="">
                 <h1 class="text-xl text-gray-900 font-semibold">Configuraciones</h1>
-                <p class="text-sm text-gray-600">Puedes ver usuarios, eventos y cursos.</p>
+                <p class="text-sm text-gray-600">Puedes ver usuarios, conceptos y cursos.</p>
             </div>
             <!--Tabs-->
             <div class="w-full lg:w-auto my-2">
@@ -32,7 +32,7 @@
                         ? 'bg-mostaza text-white shadow'
                         : 'text-gray-700 hover:bg-gray-50'"
                     >
-                        Eventos
+                        Conceptos
                     </button>
 
                     <button
@@ -115,7 +115,7 @@
         <div *ngIf="selectedTab() ==='eventos'">
             <!--Header-->
             <div class="flex justify-between items-center">
-                <h2 class="text-lg text-gray-900 font-semibold">Eventos</h2>
+                <h2 class="text-lg text-gray-900 font-semibold">Conceptos</h2>
                 <button
                     (click)="createEvent()"
                     class="inline-flex items-center gap-2 rounded-xl bg-celeste px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-azul"
@@ -133,9 +133,10 @@
                         <thead class="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-600">
                             <tr>
                                 <th class="px-5 py-3">#</th>
-                                <th class="px-5 py-3">Evento</th>
-                                <th class="px-5 py-3">Concepto</th>
+                                <th class="px-5 py-3">Nombre</th>
+                                <th class="px-5 py-3">Descripción</th>
                                 <th class="px-5 py-3">Destino</th>
+                                <th class="px-5 py-3">Monto</th>
                                 <th class="px-5 py-3 text-right">Acciones</th>
                             </tr>
                         </thead>
@@ -146,6 +147,7 @@
                                 <td class="px-5 py-4">{{e.nombre}}</td>
                                 <td class="px-5 py-4">{{e.concepto}}</td>
                                 <td class="px-5 py-4">{{e.destino}}</td>
+                                <td class="px-5 py-4">Bs. </td>
                                 <td class="px-5 py-4 text-right">
                                     <div class="inline-flex gap-2">
                                         <button 
@@ -203,6 +205,7 @@
                                 <th class="px-5 py-3">#</th>
                                 <th class="px-5 py-3">Nombre</th>
                                 <th class="px-5 py-3">Tipo</th>
+                                <th class="px-4 py-3">Monto</th>
                                 <th class="px-5 py-3">Activo</th>
                                 <th class="px-5 py-3 text-right">Acciones</th>
                             </tr>
@@ -213,6 +216,7 @@
                                 <td class="px-5 py-4">{{c.id}}</td>
                                 <td class="px-5 py-4">{{c.name}}</td>
                                 <td class="px-5 py-4">{{c.type}}</td>
+                                <td class="px-5 py-4">Bs. </td>
                                 <td class="px-5 py-4">
                                     <span
                                         class="w-fit rounded-xl px-2.5 py-1 text-xs font-semibold"

@@ -337,7 +337,7 @@ export class HistoryPage implements OnInit {
     });
   }
 
-  generatePdf(data: any[]) {
+  async generatePdf(data: any[]) {
     if (!data.length) {
       this.toast.error('No hay datos para exportar');
       return;
@@ -345,20 +345,34 @@ export class HistoryPage implements OnInit {
 
     const doc = new jsPDF('landscape');
     const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
 
-    doc.setFontSize(18);
+    const logoBase64 = await this.loadImage('assets/images/logo.png');
+    doc.addImage(logoBase64, 'PNG', 14, 10, 40, 40);
+  
     doc.setFont('helvetica', 'bold');
-    doc.text('UNIDAD EDUCATIVA MARAVILLAS DEL SABER', pageWidth / 2, 15, { align: 'center' });
-
-    doc.setFontSize(14);
-    doc.text('Reporte de Transacciones', pageWidth / 2, 23, { align: 'center' });
-
-    doc.setFontSize(10);
+    doc.setFontSize(18);
+    doc.text('UNIDAD EDUCATIVA BILINGÜE', pageWidth / 2, 18, { align: 'center' });
+    doc.text('MARAVILLAS DEL SABER', pageWidth / 2, 26, { align: 'center' });
     doc.setFont('helvetica', 'normal');
-    doc.text(`Fecha de emisión: ${new Date().toLocaleDateString('es-BO')}`, 14, 30);
+    doc.setFontSize(10);
+    doc.text(
+      `Fecha de emisión: ${new Date().toLocaleDateString('es-BO')}`,
+      pageWidth - 14,
+      16,
+      { align: 'right' }
+    );  
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text('Calle Soruco Nº 310', pageWidth / 2, 34, { align: 'center' });
+    doc.text('Cel. 74375897 - 70386170', pageWidth / 2, 39, { align: 'center' });
+    doc.text('Quillacollo, Cochabamba - Bolivia', pageWidth / 2, 44, { align: 'center' });
 
-    doc.setDrawColor(200);
-    doc.line(14, 33, pageWidth - 14, 33);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('HISTORIAL DE TRANSACCIONES', pageWidth / 2, 60, { align: 'center' });
+
+    
 
     const totalPagos = data
       .filter(x => x.type === 'PAYMENT')
@@ -372,20 +386,22 @@ export class HistoryPage implements OnInit {
       .filter(x => x.type === 'REVERSAL')
       .length;
 
+    doc.setDrawColor(220);
+    doc.setFillColor(245, 247, 250);
+    doc.roundedRect(14, 68, pageWidth - 28, 20, 3, 3, 'FD');
+    
     doc.setFontSize(11);
-    doc.text(`Total Pagos: Bs. ${totalPagos.toFixed(2)}`, 14, 42);
-    doc.text(`Total Descuentos: Bs. ${totalDescuentos.toFixed(2)}`, 14, 48);
-    doc.text(`Total Reversiones: ${totalReversiones}`, 14, 54);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Total Pagos:`, 20, 80);
+    doc.text(`Total Descuentos:`, pageWidth / 2 - 40, 80);
+    doc.text(`Total Reversiones:`, pageWidth - 90, 80);
+
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Bs. ${totalPagos.toFixed(2)}`, 45, 80);
+    doc.text(`Bs. ${totalDescuentos.toFixed(2)}`, pageWidth / 2 - 5, 80);
+    doc.text(`${totalReversiones}`, pageWidth - 45, 80);
 
     const rows: string[][] = data.map(x => {
-
-      const date = x.fecha ? new Date(x.fecha) : null;
-
-      const formattedDate =
-        date && !isNaN(date.getTime())
-          ? date.toLocaleDateString('es-BO')
-          : '';
-
       const amount = Number(x.amount ?? 0);
 
       return [
@@ -400,7 +416,7 @@ export class HistoryPage implements OnInit {
     });
 
     autoTable(doc, {
-      startY: 62,
+      startY: 95,
       head: [[
         'Fecha',
         'Tipo',
@@ -413,13 +429,17 @@ export class HistoryPage implements OnInit {
       body: rows,
       styles: {
         fontSize: 9,
-        cellPadding: 3,
-        valign: 'middle'
+        cellPadding: 4,
+        valign: 'middle',
+        lineColor: [200, 200, 200],
+        lineWidth: 0.2
       },
       headStyles: {
         fillColor: [30, 64, 175], 
         textColor: 255,
-        halign: 'center'
+        halign: 'center',
+        lineWidth: 0.4,
+        lineColor: [200, 200, 200]
       },
       columnStyles: {
         6: { halign: 'right' } 
@@ -434,19 +454,21 @@ export class HistoryPage implements OnInit {
 
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
+
       doc.setFontSize(9);
       doc.setTextColor(150);
+
       doc.text(
-        `Página ${i} de ${pageCount}`,
-        pageWidth - 20,
-        doc.internal.pageSize.getHeight() - 10,
-        { align: 'right' }
+        `Sistema de Gestión Escolar`,
+        14,
+        pageHeight - 10
       );
 
       doc.text(
-        'Sistema de Gestión Escolar',
-        14,
-        doc.internal.pageSize.getHeight() - 10
+        `Página ${i} de ${pageCount}`,
+        pageWidth - 14,
+        pageHeight - 10,
+        { align: 'right' }
       );
     }
     const pdfBlob = doc.output('blob');
@@ -454,7 +476,161 @@ export class HistoryPage implements OnInit {
     window.open(url);
 
   }
+  exportNomina():void{
+    if (!this.nominaSelectedCourse) {
+      this.toast.error('Error inesperado.')
+      return;
+    };
 
+    this.studentService.getNominaStudents({
+      grade: this.nominaSelectedCourse.grade,
+      parallel: this.nominaSelectedCourse.parallel,
+      q: this.nominaQ,
+      page: 1,
+      pageSize: 10000
+    }).subscribe({
+      next: (res) => {
+        this.pdfNomina(res.items);
+      },
+      error: (err) => {
+        this.toast.error('Error al cargar la nomina para imprimir.')
+        console.error(err)
+      },
+    });
+  }
+  async pdfNomina(data: any[]){
+    if (!data.length) {
+      this.toast.error('No hay datos para exportar');
+      return;
+    }
+
+    const doc = new jsPDF('portrait');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    const logoBase64 = await this.loadImage('assets/images/logo.png');
+    doc.addImage(logoBase64, 'PNG', 14, 10, 40, 40);
+  
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text('UNIDAD EDUCATIVA BILINGÜE', pageWidth / 2, 25, { align: 'center' });
+    doc.text('MARAVILLAS DEL SABER', pageWidth / 2, 33, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(
+      `Fecha de emisión: ${new Date().toLocaleDateString('es-BO')}`,
+      pageWidth - 14,
+      16,
+      { align: 'right' }
+    );  
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text('Calle Soruco Nº 310', pageWidth / 2, 41, { align: 'center' });
+    doc.text('Cel. 74375897 - 70386170', pageWidth / 2, 46, { align: 'center' });
+    doc.text('Quillacollo, Cochabamba - Bolivia', pageWidth / 2, 51, { align: 'center' });
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('NOMINA DE ESTUDIANTES', pageWidth / 2, 65, { align: 'center' });
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text(`Curso: ${this.nominaCourseKey}`, 7, 73);
+    
+    const rows: string[][] = data.map((x, index) => {
+      return [
+        (index + 1).toString(),
+        x.name ?? '',
+        x.tutorName ?? '',
+        x.tutorPhone ?? '',
+        x.tutorEmail ?? '',
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 79,
+      head: [[
+        '#',
+        'Alumno',
+        'Tutor',
+        'Cel',
+        'Email',
+        '',
+      ]],
+      body: rows,
+      styles: {
+        fontSize: 9,
+        cellPadding: 4,
+        valign: 'middle',
+        textColor: 0,
+        fillColor: false,
+        lineColor: [0, 0, 0],
+        lineWidth: 0.2
+      },
+      headStyles: {
+      fillColor: [255, 255, 255], 
+      textColor: 0, 
+        halign: 'center',
+        lineWidth: 0.2,
+        lineColor: [0, 0, 0]
+      },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 12 }               
+      },
+      alternateRowStyles: {
+        fillColor: false
+      },
+      tableLineWidth: 0.2,
+      tableLineColor: [0, 0, 0],
+      margin: { left: 7, right:7 }
+    });
+
+    const pageCount = doc.getNumberOfPages();
+
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+
+      doc.setFontSize(9);
+      doc.setTextColor(150);
+
+      doc.text(
+        `Sistema de Gestión Escolar`,
+        14,
+        pageHeight - 10
+      );
+
+      doc.text(
+        `Página ${i} de ${pageCount}`,
+        pageWidth - 14,
+        pageHeight - 10,
+        { align: 'right' }
+      );
+    }
+    const pdfBlob = doc.output('blob');
+    const url = URL.createObjectURL(pdfBlob);
+    window.open(url);
+  }
+  /** CONVERTIR LOGO PARA PDF */
+  private loadImage(path: string): Promise<string>{
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'Anonymous';
+      img.src = path;
+
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0);
+
+        const dataURL = canvas.toDataURL('image/png');
+        resolve(dataURL);
+      };
+      img.onerror = (error) => reject(error);
+    });
+  }
   /** PAGINACION - TRANSACCIONES */
   get pageStart() {
     return (this.page - 1) * this.pageSize;
