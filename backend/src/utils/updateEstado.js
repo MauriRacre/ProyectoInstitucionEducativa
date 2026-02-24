@@ -1,0 +1,58 @@
+const pool = require("../config/db");
+
+async function updateEstadoMensualidad(id) {
+  const [[concept]] = await pool.query(
+    `SELECT total FROM mensualidades WHERE id = ?`,
+    [id]
+  );
+
+  const [[sum]] = await pool.query(
+    `SELECT COALESCE(SUM(monto + descuento),0) AS pagado
+     FROM pagos
+     WHERE tipo = 'MENSUALIDAD'
+     AND referencia_id = ?
+     AND reversed = 0`,
+    [id]
+  );
+
+  const nuevoEstado =
+    sum.pagado >= concept.total ? "PAGADO" : "PENDIENTE";
+
+  await pool.query(
+    `UPDATE mensualidades SET estado = ? WHERE id = ?`,
+    [nuevoEstado, id]
+  );
+
+  return concept.total - sum.pagado;
+}
+
+async function updateEstadoServicio(id) {
+  const [[concept]] = await pool.query(
+    `SELECT total FROM estudiante_servicio WHERE id = ?`,
+    [id]
+  );
+
+  const [[sum]] = await pool.query(
+    `SELECT COALESCE(SUM(monto + descuento),0) AS pagado
+     FROM pagos
+     WHERE tipo = 'SERVICIO'
+     AND referencia_id = ?
+     AND reversed = 0`,
+    [id]
+  );
+
+  const nuevoEstado =
+    sum.pagado >= concept.total ? "PAGADO" : "PENDIENTE";
+
+  await pool.query(
+    `UPDATE estudiante_servicio SET estado = ? WHERE id = ?`,
+    [nuevoEstado, id]
+  );
+
+  return concept.total - sum.pagado;
+}
+
+module.exports = {
+  updateEstadoMensualidad,
+  updateEstadoServicio
+};

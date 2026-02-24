@@ -29,8 +29,8 @@ async function sendPaymentMail(to, data) {
       <ul>
         <li>Estudiante: ${data.student}</li>
         <li>Concepto: ${data.concept}</li>
-        <li>Monto pagado: $${data.paid}</li>
-        <li>Descuento: $${data.discount}</li>
+        <li>Monto pagado: Bs ${data.paid}</li>
+        <li>Descuento: Bs ${data.discount}</li>
       </ul>
       <p>Gracias por su responsabilidad.</p>
     `,

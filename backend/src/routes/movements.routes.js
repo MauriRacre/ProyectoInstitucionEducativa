@@ -2,14 +2,19 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
 const { apiError } = require("../utils/apiError");
-const { updateEstadoMensualidad } = require("../utils/updateEstadoMensualidad");
+//const { updateEstadoMensualidad } = require("../utils/updateEstadoMensualidad");
 const { sendPaymentMail } = require("../utils/mailer");
-
+const {
+  updateEstadoMensualidad,
+  updateEstadoServicio
+} = require("../utils/updateEstado");
 // Registrar movimiento
-router.post("/payment-concepts/:conceptId/movements", async (req, res) => {
-
+router.post("/payment-concepts/:tipo/:conceptId/movements", async (req, res) => {
   try {
-    const conceptId = Number(req.params.conceptId);
+
+    const { tipo, conceptId } = req.params;
+    const id = Number(conceptId);
+
     const {
       paid = 0,
       discount = 0,
@@ -18,87 +23,117 @@ router.post("/payment-concepts/:conceptId/movements", async (req, res) => {
       dateISO
     } = req.body;
 
+    if (!["MENSUALIDAD", "SERVICIO"].includes(tipo)) {
+      return apiError(res, "VALIDATION_ERROR", "Tipo inválido");
+    }
+
     if (paid < 0 || discount < 0) {
       return apiError(res, "VALIDATION_ERROR", "Montos inválidos");
     }
 
+    const table = tipo === "MENSUALIDAD"
+      ? "mensualidades"
+      : "estudiante_servicio";
+
     const [[concept]] = await pool.query(
-      `SELECT total, estado FROM mensualidades WHERE id = ?`,
-      [conceptId]
+      `SELECT total, estado FROM ${table} WHERE id = ?`,
+      [id]
     );
 
     if (!concept) {
       return apiError(res, "NOT_FOUND", "Concepto no encontrado");
     }
+
     if (concept.estado === "PAGADO") {
-      return apiError(
-        res,
-        "CONFLICT",
-        "La mensualidad ya está cancelada"
-      );
+      return apiError(res, "CONFLICT", "El concepto ya está pagado");
     }
 
     const [[sum]] = await pool.query(
-      `SELECT 
-          COALESCE(SUM(monto + descuento),0) AS total
-        FROM pagos
-        WHERE mensualidad_id = ?`,
-      [conceptId]
+      `SELECT COALESCE(SUM(monto + descuento),0) AS total
+       FROM pagos
+       WHERE tipo = ? AND referencia_id = ? AND reversed = 0`,
+      [tipo, id]
     );
 
     const pendienteActual = concept.total - sum.total;
     const aplicando = paid + discount;
 
     if (aplicando > pendienteActual) {
-      return apiError(
-        res,
-        "BUSINESS_RULE",
-        "El pago supera el pendiente"
-      );
+      return apiError(res, "BUSINESS_RULE", "El pago supera el pendiente");
     }
 
     const fecha = dateISO || new Date().toISOString().slice(0, 10);
 
     const [result] = await pool.query(
       `INSERT INTO pagos 
-        (mensualidad_id, fecha, monto, descuento, nota, responsable)
-        VALUES (?, ?, ?, ?, ?, ?)`,
-      [conceptId, fecha, paid, discount, note, responsible]
+       (tipo, referencia_id, fecha, monto, descuento, nota, responsable)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [tipo, id, fecha, paid, discount, note, responsible]
     );
 
     // Registrar ingreso en movimientos
     if (paid > 0) {
       await pool.query(
-        `
-        INSERT INTO movimientos (tipo, concepto, monto, encargado)
-        VALUES ('INGRESO', ?, ?, ?)
-        `,
+        `INSERT INTO movimientos (tipo, concepto, monto, encargado)
+         VALUES ('INGRESO', ?, ?, ?)`,
         [
-          `Pago mensualidad ID ${conceptId}`,
+          `Pago ${tipo} ID ${id}`,
           paid,
           responsible || "Sistema"
         ]
       );
     }
 
-     // obtener tutor y alumno
-    const [[info]] = await pool.query(
-      `SELECT 
-          t.correo AS email,
-          t.nombre AS tutor,
-          e.nombre AS student
-      FROM mensualidades m
-      JOIN estudiantes e ON e.id = m.estudiante_id
-      JOIN tutores t ON t.id = e.tutor_id
-      WHERE m.id = ?`,
-      [conceptId]
-    );
+    let newPending;
 
-      try {
+    if (tipo === "MENSUALIDAD") {
+      newPending = await updateEstadoMensualidad(id);
+    } else {
+      newPending = await updateEstadoServicio(id);
+    }
+
+    let info = null;
+
+    if (tipo === "MENSUALIDAD") {
+      const [[data]] = await pool.query(
+        `SELECT 
+            t.correo AS email,
+            t.nombre AS tutor,
+            e.nombre AS student
+         FROM mensualidades m
+         JOIN estudiantes e ON e.id = m.estudiante_id
+         JOIN tutores t ON t.id = e.tutor_id
+         WHERE m.id = ?`,
+        [id]
+      );
+      info = data;
+    } else {
+      const [[data]] = await pool.query(
+        `SELECT 
+            t.correo AS email,
+            t.nombre AS tutor,
+            e.nombre AS student,
+            s.nombre AS serviceName
+         FROM estudiante_servicio es
+         JOIN estudiantes e ON e.id = es.estudiante_id
+         JOIN tutores t ON t.id = e.tutor_id
+         JOIN servicios s ON s.id = es.servicio_id
+         WHERE es.id = ?`,
+        [id]
+      );
+      info = data;
+    }
+
+    const conceptLabel =
+      tipo === "SERVICIO"
+        ? `Servicio - ${info?.serviceName || ""}`
+        : "Mensualidad";
+
+    try {
       if (info?.email) {
         await sendPaymentMail(info.email, {
           student: info.student,
-          concept: `Mensualidad`,
+          concept: conceptLabel,
           paid,
           discount
         });
@@ -107,15 +142,11 @@ router.post("/payment-concepts/:conceptId/movements", async (req, res) => {
       console.error("Error enviando correo:", mailError.message);
     }
 
-    const newPending = await updateEstadoMensualidad(conceptId);
-
     res.json({
-    movementId: result.insertId,
-    conceptId,
-    newPending,
-  });
-  
-
+      movementId: result.insertId,
+      conceptId: id,
+      newPending
+    });
 
   } catch (error) {
     console.error(error);
