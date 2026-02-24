@@ -252,9 +252,9 @@
                                   de Bs. {{ p.amountTotal | number:'1.2-2' }}
                                 </span>
                                 <button
-                                  *ngIf="i === 0 && !h.reverted"
+                                  *ngIf="isAdmin && !h.reverted"
                                   type="button"
-                                  (click)="revertLastMovement(p)"
+                                  (click)="revertMovement(h.id)"
                                   class="ml-2 rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-rojo hover:bg-red-50"
                                   title="Revertir último movimiento"
                                 >

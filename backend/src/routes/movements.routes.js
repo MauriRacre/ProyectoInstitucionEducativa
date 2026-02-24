@@ -156,7 +156,7 @@ router.post("/payment-concepts/:tipo/:conceptId/movements", async (req, res) => 
 
 router.post("/movements/:movementId/reversal", async (req, res) => {
   const conn = await pool.getConnection();
-
+  console.log(conn);
   try {
     const { movementId } = req.params;
     const { reason = null, responsible = null } = req.body;
@@ -193,7 +193,7 @@ router.post("/movements/:movementId/reversal", async (req, res) => {
         responsible
       ]
     );
-
+    console.log(result);
     await conn.query(
       `UPDATE pagos SET reversed = 1 WHERE id = ?`,
       [movementId]
@@ -229,7 +229,7 @@ router.post("/movements/:movementId/reversal", async (req, res) => {
     );
 
     await conn.commit();
-
+    console.log('despues del commit')
     res.json({
       ok: true,
       reversalMovementId: result.insertId,

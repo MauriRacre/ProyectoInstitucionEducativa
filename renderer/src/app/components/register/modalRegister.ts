@@ -2,6 +2,7 @@ import { Component, EventEmitter, HostListener, Input,Output, OnChanges, SimpleC
 import { CommonModule } from '@angular/common';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators, AbstractControl } from '@angular/forms';
 import { ModalService } from '../../core/swal/swal.service';
+import { AuthService } from '../../core/services/auth.service';
 
 type Grade = 'Kinder' | 'Pre-Kinder' | '1er' | '2do' | '3ro' | '4to' | '5to' | '6to' 
 type Parallel = 'A' | 'B' | 'C';
@@ -41,6 +42,9 @@ export class ModalRegister {
   grades: Grade[] = ['Pre-Kinder', 'Kinder','1er', '2do', '3ro', '4to', '5to'];
   parallels: Parallel[] = ['A', 'B', 'C'];
   form!: FormGroup;
+
+  
+
   constructor(private fb: FormBuilder, private modal: ModalService) {
       this.form = this.fb.group({
           parent: this.fb.group({
@@ -54,7 +58,6 @@ export class ModalRegister {
   }
 
     ngOnChanges(changes: SimpleChanges): void {
-    // Cuando se abre el modal en modo editar o cambia el value → precargar
     const openedNow = changes['open']?.currentValue === true;
 
     if ((openedNow || changes['value']) && this.open) {

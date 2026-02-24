@@ -10,7 +10,10 @@ import { TutorApiService } from '../../core/services/tutor.service';
 import { CategoryService, CategoryDTO, CategoryType } from '../../core/services/categoria.service';
 import { PaymentService } from '../../core/services/pay.service';
 import { firstValueFrom } from 'rxjs';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { AuthService } from '../../core/services/auth.service';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { ReciboService } from '../../core/services/recibo.service';
 
 type Parallel = 'A' | 'B' | 'C';
 type Grade = 'Kinder' | 'Pre-Kinder' | '1er' | '2do' | '3ro' | '4to' | '5to' | '6to';
@@ -96,6 +99,8 @@ export class PayPage implements OnInit{
     private tutorapi: TutorApiService,
     private categoryapi: CategoryService,
     private paymentApi: PaymentService,
+    private auth: AuthService,
+    private reciboNum: ReciboService,
   ) {}
 
   isLoading = false;
@@ -122,17 +127,29 @@ export class PayPage implements OnInit{
     });
   }
   private get currentUserName(): string {
-    const raw = localStorage.getItem('user');
+    const raw = this.auth.getUser();
     if (!raw) return 'SISTEMA';
 
     try {
-      const user = JSON.parse(raw);
-      return user?.nombre || user?.username || 'SISTEMA';
+      return raw?.nombre || raw?.username || 'SISTEMA';
     } catch {
       return 'SISTEMA';
     }
   }
+  get currentUserRole(){
+    const raw = this.auth.getUser();
+    if(!raw) return '';
+    try {
+      return raw?.rol || '';
+    } catch{
+      console.error('Error al recuperar role.')
+      return '';
+    }
+  }
 
+  get isAdmin(): boolean{
+    return this.currentUserRole === 'ADMIN';
+  }
   private fetchPayView(tutorId:number){
     this.isLoading = true;
     this.apiErrorMsg = '';
@@ -449,7 +466,48 @@ export class PayPage implements OnInit{
       this.toast.warning('Selecciona al menos un concepto con monto válido.');
       return;
     }
+    
+    const movements = [];
+    const recibosMap = new Map<number, {
+      childId: number,
+      conceptos: { concepto: string, monto: number }[],
+      descuento: number
+    }>();
 
+    for (const id of this.selectedIds) {
+      const payment = this.findPayment(id);
+      if (!payment) continue;
+
+      const paid = this.draftPay[id] ?? 0;
+      const discount = this.draftDiscount[id] ?? 0;
+
+      movements.push({
+        conceptId: id,
+        dto: {
+          paid,
+          discount,
+          responsible: this.currentUserName
+        }
+      });
+
+      if (!recibosMap.has(payment.childId)) {
+        recibosMap.set(payment.childId, {
+          childId: payment.childId,
+          conceptos: [],
+          descuento: 0,
+        });
+      }
+
+      const recibo = recibosMap.get(payment.childId)!;
+      recibo.conceptos.push({
+        concepto: payment.concept,
+        monto: paid
+      });
+
+      recibo.descuento += discount;
+    }
+    const recibos = Array.from(recibosMap.values());
+    
     const ok = await this.modal.confirm({
       title: 'Confirmar pago',
       message: `Se registrará un cobro por Bs. ${this.totals.toCharge.toFixed(2)}. ¿Continuar?`,
@@ -459,23 +517,11 @@ export class PayPage implements OnInit{
     });
 
     if (!ok) return;
-    const movements = [];
-
-    for (const id of this.selectedIds) {
-
-      movements.push({
-        conceptId: id,
-        dto: {
-          paid: this.draftPay[id] ?? 0,
-          discount: this.draftDiscount[id] ?? 0,
-          responsible: this.currentUserName
-        }
-      });
-    }
 
     this.paymentApi.registerMultipleMovements(movements)
     .subscribe({
       next: () => {
+        this.facturaPdf(recibos);
         this.toast.success('Pago registrado correctamente');
         this.selectedIds.clear();
         this.draftDiscount = {};
@@ -489,11 +535,8 @@ export class PayPage implements OnInit{
     });
   }
 
-  async revertLastMovement(p: PaymentConcept) {
-
-    const last = (p.history ?? [])[0];
-    if (!last) return;
-
+  async revertMovement(movementId: number) {
+    console.log(movementId);
     const ok = await this.modal.confirm({
       title: 'Revertir último movimiento',
       message: '¿Deseas revertir el último pago?',
@@ -502,7 +545,7 @@ export class PayPage implements OnInit{
 
     if (!ok) return;
 
-    this.paymentApi.revertMovement(last.id, {
+    this.paymentApi.revertMovement(movementId, {
       reason: 'Reversión manual',
       responsible: this.currentUserName
     }).subscribe({
@@ -516,7 +559,294 @@ export class PayPage implements OnInit{
       }
     });
   }
+  /** PDF FACTURA */
+  /*** CONVERTIR LOGO PARA PDF */
+  private loadImage(path: string): Promise<string>{
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'Anonymous';
+      img.src = path;
 
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0);
+
+        const dataURL = canvas.toDataURL('image/png');
+        resolve(dataURL);
+      };
+      img.onerror = (error) => reject(error);
+    });
+  }
+  /*** CONVERTIR NUM EN LETRAS */
+  numeroALetras(num: number): string {
+
+  const unidades = [
+    '', 'Uno', 'Dos', 'Tres', 'Cuatro', 'Cinco', 'Seis', 'Siete', 'Ocho', 'Nueve'
+  ];
+
+  const especiales = [
+    'Diez', 'Once', 'Doce', 'Trece', 'Catorce',
+    'Quince', 'Dieciséis', 'Diecisiete', 'Dieciocho', 'Diecinueve'
+  ];
+
+  const decenas = [
+    '', '', 'Veinte', 'Treinta', 'Cuarenta',
+    'Cincuenta', 'Sesenta', 'Setenta', 'Ochenta', 'Noventa'
+  ];
+
+  const centenas = [
+    '', 'Ciento', 'Doscientos', 'Trescientos', 'Cuatrocientos',
+    'Quinientos', 'Seiscientos', 'Setecientos',
+    'Ochocientos', 'Novecientos'
+  ];
+
+  function convertirMenorMil(n: number): string {
+    if (n === 0) return '';
+    if (n === 100) return 'Cien';
+
+    let texto = '';
+
+    const c = Math.floor(n / 100);
+    const d = Math.floor((n % 100) / 10);
+    const u = n % 10;
+
+    if (c > 0) {
+      texto += centenas[c] + ' ';
+    }
+
+    if (d === 1) {
+      texto += especiales[u];
+      return texto.trim();
+    }
+
+    if (d === 2 && u > 0) {
+      texto += 'Veinti' + unidades[u].toLowerCase();
+      return texto.trim();
+    }
+
+    if (d > 1) {
+      texto += decenas[d];
+      if (u > 0) {
+        texto += ' y ' + unidades[u];
+      }
+      return texto.trim();
+    }
+
+    if (u > 0) {
+      texto += unidades[u];
+    }
+
+    return texto.trim();
+  }
+
+  function convertir(n: number): string {
+
+    if (n === 0) return 'Cero';
+
+    let resultado = '';
+
+    const millones = Math.floor(n / 1_000_000);
+    const miles = Math.floor((n % 1_000_000) / 1000);
+    const resto = n % 1000;
+
+    if (millones > 0) {
+      if (millones === 1) {
+        resultado += 'Un millón ';
+      } else {
+        resultado += convertirMenorMil(millones) + ' millones ';
+      }
+    }
+
+    if (miles > 0) {
+      if (miles === 1) {
+        resultado += 'Mil ';
+      } else {
+        resultado += convertirMenorMil(miles) + ' mil ';
+      }
+    }
+
+    if (resto > 0) {
+      resultado += convertirMenorMil(resto);
+    }
+
+    return resultado.trim();
+  }
+
+  const enteros = Math.floor(num);
+  const centavos = Math.round((num - enteros) * 100);
+
+  const letras = convertir(enteros);
+
+  return `${letras} ${centavos.toString().padStart(2,'0')}/100`;
+}
+  async facturaPdf(
+    movimientos: {
+      childId: number,
+      conceptos: { concepto: string, monto: number }[],
+      descuento: number,
+    }[]
+  ) {
+
+    if (!movimientos.length) {
+      this.toast.error('No hay pagos para generar recibo');
+      return;
+    }
+
+    const doc = new jsPDF('portrait');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const logoBase64 = await this.loadImage('assets/images/logo.png');
+
+    for (let i = 0; i < movimientos.length; i++) {
+
+      if (i > 0) doc.addPage();
+
+      const mov = movimientos[i];
+      const child = this.children.find(c => c.id === mov.childId);
+      if (!child) continue;
+
+      const subtotal = mov.conceptos.reduce((a,c)=>a+c.monto,0) + mov.descuento;
+      const totalRecibido = subtotal - mov.descuento;
+      const reciboNumero = this.reciboNum.getNextReciboNumero();
+
+      let y = 20;
+
+      // ================= HEADER =================
+
+      doc.addImage(logoBase64, 'PNG', 20, y, 40, 40);
+
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(14);
+      doc.text('UNIDAD EDUCATIVA BILINGÜE', pageWidth/2 + 20, y + 10, {align:'center'});
+      doc.text('MARAVILLAS DEL SABER', pageWidth/2 + 20, y + 17, {align:'center'});
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica','normal');
+      doc.text('Calle Soruco Nº 310', pageWidth/2 + 20, y + 25, {align:'center'});
+      doc.text('Cel. 74375897 - 70386170', pageWidth/2 + 20, y + 30, {align:'center'});
+      doc.text('Quillacollo, Cochabamba - Bolivia', pageWidth/2 + 20, y + 35, {align:'center'});
+
+      y += 50;
+
+      doc.setDrawColor(180);
+      doc.line(15, y, pageWidth - 20, y);
+
+      y += 10;
+
+      // ================= BLOQUE DATOS =================
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica','bold');
+      doc.text('N° de Recibo:', 15, y);
+      doc.setFont('helvetica','normal');
+      doc.text(reciboNumero, 50, y);
+
+      doc.setFont('helvetica','bold');
+      doc.text('Fecha:', pageWidth - 60, y);
+      doc.setFont('helvetica','normal');
+      doc.text(new Date().toLocaleDateString('es-BO'), pageWidth - 35, y);
+
+      y += 10;
+
+      doc.text(`Tutor: ${this.tutor.name}`, 15, y);
+      y += 6;
+      doc.text(`Celular: ${this.tutor.phone}`, 15, y);
+
+      y += 10;
+      doc.text(`Estudiante: ${child.name}`, 15, y);
+      y += 6;
+      doc.text(`Curso: ${child.grade} ${child.parallel}`, 15, y);
+
+      y += 8;
+      doc.text(`Forma de pago: Efectivo`, 15, y);
+      y += 6;
+      doc.text(`Recibido por: ${this.currentUserName}`, 15, y);
+
+      y += 10;
+
+      // ================= TABLA UNIFICADA =================
+
+      const conceptosLength = mov.conceptos.length;
+
+      const body = [
+        ...mov.conceptos.map(c => [
+          c.concepto,
+          `Bs. ${c.monto.toFixed(2)}`
+        ]),
+
+        ['Total deuda:', `Bs. ${subtotal.toFixed(2)}`],
+        ['Descuento:', `Bs. ${mov.descuento.toFixed(2)}`],
+        [
+          { content: 'Total pagado:', styles: { fontStyle: 'bold' as const } },
+          { content: `Bs. ${totalRecibido.toFixed(2)}`, styles: { fontStyle: 'bold' as const } }
+        ]
+      ];
+
+      autoTable(doc,{
+        startY: y,
+        head:[['Concepto','Monto']],
+        body: body,
+        theme:'grid',
+        styles:{
+          fontSize:9,
+          cellPadding:2
+        },
+        headStyles:{
+          fillColor:[58, 110, 165],
+          textColor:255,
+          halign:'center'
+        },
+        columnStyles:{
+          0:{ halign:'left' },
+          1:{ halign:'right' }
+        },
+        didParseCell: function (data) {
+          const resumenStart = conceptosLength;
+
+          if (data.row.index >= resumenStart) {
+            data.cell.styles.halign = 'right';
+          }
+
+          if (data.row.index === resumenStart + 2) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.halign = 'right';
+          }
+        }
+      });
+
+      y = (doc as any).lastAutoTable.finalY + 7;
+
+      // ================= MONTO EN LETRAS =================
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica','italic');
+      doc.text(
+        `Son: ${this.numeroALetras(totalRecibido)} Bolivianos.`,
+        15,
+        y
+      );
+
+      // ================= FIRMAS =================
+
+      doc.setLineWidth(0.25);
+      doc.setDrawColor(120);
+
+      doc.line(40,pageHeight-40,90,pageHeight-40);
+      doc.line(pageWidth-90,pageHeight-40,pageWidth-40,pageHeight-40);
+
+      doc.setFontSize(9);
+      doc.text('RECIBÍ CONFORME',65,pageHeight-32,{align:'center'});
+      doc.text('ENTREGUÉ CONFORME',pageWidth-65,pageHeight-32,{align:'center'});
+    }
+
+    const pdfBlob = doc.output('blob');
+    const url = URL.createObjectURL(pdfBlob);
+    window.open(url);
+  }
   /** Modal Abono */
   studentOptions: { id: number; name: string }[] = [];
 
