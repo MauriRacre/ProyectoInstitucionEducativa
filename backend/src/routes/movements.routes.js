@@ -156,7 +156,7 @@ router.post("/payment-concepts/:tipo/:conceptId/movements", async (req, res) => 
 
 router.post("/movements/:movementId/reversal", async (req, res) => {
   const conn = await pool.getConnection();
-  console.log(conn);
+
   try {
     const { movementId } = req.params;
     const { reason = null, responsible = null } = req.body;
@@ -182,10 +182,11 @@ router.post("/movements/:movementId/reversal", async (req, res) => {
 
     const [result] = await conn.query(
       `INSERT INTO pagos
-        (mensualidad_id, fecha, monto, descuento, nota, responsable, reversed)
-       VALUES (?, ?, ?, ?, ?, ?, 0)`,
+        (tipo, referencia_id, fecha, monto, descuento, nota, responsable, reversed)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
       [
-        movement.mensualidad_id,
+        movement.tipo,
+        movement.referencia_id,
         fecha,
         -movement.monto,
         -movement.descuento,
@@ -193,43 +194,34 @@ router.post("/movements/:movementId/reversal", async (req, res) => {
         responsible
       ]
     );
-    console.log(result);
+
     await conn.query(
       `UPDATE pagos SET reversed = 1 WHERE id = ?`,
       [movementId]
     );
 
-    if (movement.descuento > 0) {
-      await conn.query(
-        `
-        UPDATE mensualidades
-        SET discount_amount = discount_amount - ?
-        WHERE id = ?
-        `,
-        [movement.descuento, movement.mensualidad_id]
-      );
-    }
-
     if (movement.monto > 0) {
       await conn.query(
-        `
-        INSERT INTO movimientos (tipo, concepto, monto, encargado)
-        VALUES ('GASTO', ?, ?, ?)
-        `,
+        `INSERT INTO movimientos (tipo, concepto, monto, encargado)
+         VALUES ('GASTO', ?, ?, ?)`,
         [
-          `Reverso pago mensualidad ID ${movement.mensualidad_id}`,
+          `Reverso ${movement.tipo} ID ${movement.referencia_id}`,
           movement.monto,
           responsible || "Sistema"
         ]
       );
     }
 
-    const newPending = await updateEstadoMensualidad(
-      movement.mensualidad_id
-    );
+    let newPending;
+
+    if (movement.tipo === "MENSUALIDAD") {
+      newPending = await updateEstadoMensualidad(movement.referencia_id);
+    } else {
+      newPending = await updateEstadoServicio(movement.referencia_id);
+    }
 
     await conn.commit();
-    console.log('despues del commit')
+
     res.json({
       ok: true,
       reversalMovementId: result.insertId,

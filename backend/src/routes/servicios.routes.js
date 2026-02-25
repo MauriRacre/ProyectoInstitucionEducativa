@@ -132,4 +132,69 @@ router.get('/student/:studentId', async (req, res) => {
     res.status(500).json({ ok: false });
   }
 });
+router.get("/stats/extra-courses", async (req, res) => {
+  try {
+    const { month, year } = req.query;
+
+    if (!month || !year) {
+      return apiError(res, "VALIDATION_ERROR", "Mes y año son requeridos");
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT 
+        s.nombre AS curso,
+        COUNT(es.id) AS total
+      FROM estudiante_servicio es
+      JOIN servicios s ON s.id = es.servicio_id
+      WHERE es.mes = ?
+        AND es.anio = ?
+        AND s.activo = 1
+      GROUP BY s.id, s.nombre
+      ORDER BY s.nombre ASC
+      `,
+      [month, year]
+    );
+
+    res.json(rows);
+
+  } catch (error) {
+    console.error(error);
+    apiError(res, "BUSINESS_RULE", "Error obteniendo inscritos por curso");
+  }
+});
+router.get("/stats/extra-courses-income", async (req, res) => {
+  try {
+    const { month, year } = req.query;
+
+    if (!month || !year) {
+      return apiError(res, "VALIDATION_ERROR", "Mes y año son requeridos");
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT 
+        s.nombre AS curso,
+        COALESCE(SUM(p.monto + p.descuento), 0) AS total
+      FROM pagos p
+      JOIN mensualidades m ON m.id = p.referencia_id
+      JOIN estudiante_servicio es ON es.id = m.estudiante_id
+      JOIN servicios s ON s.id = es.servicio_id
+      WHERE es.mes = ?
+        AND es.anio = ?
+        AND p.reversed = 0
+      GROUP BY s.id, s.nombre
+      ORDER BY s.nombre ASC
+      `,
+      [month, year]
+    );
+
+    res.json(rows);
+
+  } catch (error) {
+    console.error(error);
+    apiError(res, "BUSINESS_RULE", "Error obteniendo ingresos por curso");
+  }
+});
+
 module.exports = router;

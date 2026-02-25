@@ -41,13 +41,12 @@ router.get("/", async (req, res) => {
         [t.id]
       );
 
-      // 🔥 BALANCE = pagado - total
       const [[{ balance }]] = await pool.query(
         `SELECT 
             COALESCE((
               SELECT SUM(p.monto + p.descuento)
               FROM pagos p
-              JOIN mensualidades mm ON mm.id = p.mensualidad_id
+              JOIN mensualidades mm ON mm.id = p.referencia_id
               JOIN estudiantes ee ON ee.id = mm.estudiante_id
               WHERE ee.tutor_id = ?
             ),0)
@@ -179,14 +178,12 @@ router.get("/:tutorId", async (req, res) => {
        WHERE tutor_id = ?`,
       [tutorId]
     );
-
-    // 🔥 mismo cálculo correcto
     const [[{ balance }]] = await pool.query(
       `SELECT 
           COALESCE((
             SELECT SUM(p.monto + p.descuento)
             FROM pagos p
-            JOIN mensualidades mm ON mm.id = p.mensualidad_id
+            JOIN mensualidades mm ON mm.id = p.referencia_id
             JOIN estudiantes ee ON ee.id = mm.estudiante_id
             WHERE ee.tutor_id = ?
           ),0)
@@ -268,7 +265,7 @@ router.get("/:tutorId/pay-view", async (req, res) => {
         const [[sum]] = await pool.query(
           `SELECT COALESCE(SUM(monto + descuento),0) AS total
            FROM pagos
-           WHERE mensualidad_id = ?`,
+           WHERE referencia_id = ?`,
           [c.id]
         );
 
@@ -283,7 +280,7 @@ router.get("/:tutorId/pay-view", async (req, res) => {
           const [rows] = await pool.query(
             `SELECT id, fecha, monto, descuento, nota, responsable
              FROM pagos
-             WHERE mensualidad_id = ?`,
+             WHERE referencia_id= ?`,
             [c.id]
           );
 
