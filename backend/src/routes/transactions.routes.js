@@ -29,7 +29,7 @@ router.get("/", async (req, res) => {
         p.nota AS note,
         (p.monto + p.descuento) AS amount
       FROM pagos p
-      JOIN mensualidades m ON m.id = p.mensualidad_id
+      JOIN mensualidades m ON m.id = p.referencia_id
       JOIN estudiantes e ON e.id = m.estudiante_id
       JOIN tutores t ON t.id = e.tutor_id
 
@@ -274,7 +274,7 @@ router.get("/search", async (req, res) => {
         p.nota AS note,
         (p.monto + p.descuento) AS amount
       FROM pagos p
-      JOIN mensualidades m ON m.id = p.mensualidad_id
+      JOIN mensualidades m ON m.id = p.referencia_id
       JOIN estudiantes e ON e.id = m.estudiante_id
       JOIN tutores t ON t.id = e.tutor_id
       ${wherePagos}
@@ -358,7 +358,7 @@ router.get("/concepts", async (req, res) => {
       SELECT DISTINCT 
         CONCAT('Mensualidad ', m.mes, ' ', m.anio) AS concept
       FROM pagos p
-      JOIN mensualidades m ON m.id = p.mensualidad_id
+      JOIN mensualidades m ON m.id = p.referencia_id
       ORDER BY concept ASC
     `);
 

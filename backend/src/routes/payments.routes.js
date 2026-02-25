@@ -37,7 +37,7 @@ router.get("/view/:tutorId", async (req, res) => {
     const [payments] = await pool.query(
       `SELECT *
        FROM pagos
-       WHERE mensualidad_id IN (
+       WHERE referencia_id IN (
          SELECT id FROM mensualidades
          WHERE estudiante_id IN (
            SELECT id FROM estudiantes WHERE tutor_id = ?
@@ -54,7 +54,7 @@ router.get("/view/:tutorId", async (req, res) => {
 
     for (const c of concepts) {
       const history = payments
-        .filter(p => p.mensualidad_id === c.id)
+        .filter(p => p.referencia_id === c.id)
         .map(p => ({
           id: p.id,
           dateISO: p.fecha,
