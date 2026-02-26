@@ -3,6 +3,8 @@ const router = express.Router();
 const pool = require("../config/db");
 const { apiError } = require("../utils/apiError");
 
+
+//Reporte de ingresos de las mensualidades 
 router.get("/mensualidad", async (req, res) => {
   try {
     const { month, year } = req.query;
@@ -47,6 +49,7 @@ router.get("/mensualidad", async (req, res) => {
   }
 });
 
+//Reporte de ingresos de los servicios 
 router.get("/servicios", async (req, res) => {
   try {
     const { month, year } = req.query;

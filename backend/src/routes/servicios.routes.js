@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../config/db');
 const { apiError } = require("../utils/apiError");
 
+//inscirbir - crear una mensualidad para algun servicio
 router.post('/', async (req, res) => {
   try {
 
@@ -98,6 +99,7 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+//desinscribir a un estudiante
 router.patch("/:id/desuscribir", async (req, res) => {
   const conn = await pool.getConnection();
 
@@ -159,7 +161,8 @@ router.patch("/:id/desuscribir", async (req, res) => {
   }
 });
 
-router.get('/student/:studentId', async (req, res) => {
+//deuda por estudiante
+router.get('/estudiante/:studentId', async (req, res) => {
   try {
 
     const { studentId } = req.params;
@@ -193,7 +196,9 @@ router.get('/student/:studentId', async (req, res) => {
     res.status(500).json({ ok: false });
   }
 });
-router.get("/stats/extra-courses", async (req, res) => {
+
+//total inscritos por curso extra
+router.get("/total-inscritos", async (req, res) => {
   try {
     const { month, year } = req.query;
 
@@ -224,7 +229,9 @@ router.get("/stats/extra-courses", async (req, res) => {
     apiError(res, "BUSINESS_RULE", "Error obteniendo inscritos por curso");
   }
 });
-router.get("/stats/extra-courses-income", async (req, res) => {
+
+//ingresos por curso
+router.get("/ingresos-curso", async (req, res) => {
   try {
     const { month, year } = req.query;
 

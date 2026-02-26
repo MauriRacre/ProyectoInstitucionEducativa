@@ -142,6 +142,8 @@ router.get("/search", async (req, res) => {
     apiError(res, "BUSINESS_RULE", "Error en búsqueda");
   }
 });
+
+//estudaintes total 
 router.get("/total", async (req, res) => {
   try {
 
@@ -220,6 +222,7 @@ router.get("/:tutorId", async (req, res) => {
   }
 });
 
+//api para la vista de inscripciones
 router.get("/:tutorId/pay-view", async (req, res) => {
   try {
     const { tutorId } = req.params;

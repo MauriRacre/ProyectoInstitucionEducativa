@@ -82,6 +82,7 @@ router.get("/", async (req, res) => {
   }
 });
 
+// ingresos mes
 router.get("/ingresos-mes", async (req, res) => {
   try {
     const year = Number(req.query.year);
