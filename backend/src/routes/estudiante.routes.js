@@ -321,5 +321,28 @@ router.get("/nomina", async (req, res) => {
     return apiError(res, "BUSINESS_RULE", "Error obteniendo estudiantes");
   }
 });
+router.get("/ranking-estudiantes", async (req, res) => {
+  try {
+    const { month, year } = req.query;
 
+    const [rows] = await pool.query(`
+      SELECT 
+        e.id,
+        e.nombre,
+        COUNT(CASE WHEN m.estado = 'PENDIENTE' THEN 1 END) AS pendientes,
+        COUNT(CASE WHEN m.estado = 'PAGADO' THEN 1 END) AS pagados
+      FROM estudiantes e
+      JOIN mensualidades m ON m.estudiante_id = e.id
+      WHERE m.mes = ? AND m.anio = ?
+      GROUP BY e.id, e.nombre
+      ORDER BY pendientes DESC
+    `, [month, year]);
+
+    res.json(rows);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error obteniendo ranking" });
+  }
+});
 module.exports = router;

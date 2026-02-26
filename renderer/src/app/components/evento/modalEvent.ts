@@ -38,9 +38,10 @@ export class ModalEventComponent implements OnChanges {
 
     constructor(private fb: FormBuilder) {
         this.form = this.fb.group({
-        event: ['', [Validators.required, Validators.minLength(5)]],
+        event: ['', [Validators.required, Validators.minLength(3)]],
         concept: ['', [Validators.required, Validators.minLength(5)]],
-        category: ['', Validators.required]
+        category: ['', Validators.required],
+        monto: [0, [Validators.required, Validators.min(0)]]
         });
     }
 
@@ -50,7 +51,8 @@ export class ModalEventComponent implements OnChanges {
             this.form.patchValue({
                 event: this.value.nombre,
                 concept: this.value.concepto,
-                category: this.value.destino
+                category: this.value.destino,
+                monto: this.value.monto
             });
         }
 
@@ -59,7 +61,8 @@ export class ModalEventComponent implements OnChanges {
             this.form.reset({
                 event: '',
                 concept: '',
-                category: ''
+                category: '',
+                monto: 0
             });
         }
     }
@@ -69,23 +72,24 @@ export class ModalEventComponent implements OnChanges {
     }
 
     onSubmit(): void {
-    if (this.loading) return;
+        if (this.loading) return;
 
-    if (this.form.invalid) {
-        this.form.markAllAsTouched();
-        return;
-    }
-
-    const formValue = this.form.value;
-
-    this.submitForm.emit({
-        mode: this.mode,
-        payload: {
-        evento: formValue.event,
-        concepto: formValue.concept,
-        destino: formValue.category
+        if (this.form.invalid) {
+            this.form.markAllAsTouched();
+            return;
         }
-    });
+
+        const formValue = this.form.value;
+
+        this.submitForm.emit({
+            mode: this.mode,
+            payload: {
+            evento: formValue.event,
+            concepto: formValue.concept,
+            destino: formValue.category,
+            monto: Number(formValue.monto)
+            }
+        });
     }
 
 

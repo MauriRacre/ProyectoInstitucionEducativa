@@ -216,7 +216,7 @@ router.get("/total-inscritos", async (req, res) => {
       WHERE es.mes = ?
         AND es.anio = ?
         AND s.activo = 1
-      GROUP BY s.id, s.nombre
+      GROUP BY s.id
       ORDER BY s.nombre ASC
       `,
       [month, year]

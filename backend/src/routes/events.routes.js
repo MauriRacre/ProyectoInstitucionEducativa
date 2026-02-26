@@ -62,18 +62,16 @@ router.post("/", async (req, res) => {
 
 router.put("/:id", async (req, res) => {
   try {
-    const { evento, concepto, destino } = req.body;
+    const { id } = req.params;   // ✅ AQUÍ
+    const { evento, concepto, destino, monto } = req.body;
 
     await pool.query(
       `UPDATE eventos
-        SET evento = ?, concepto = ?, destino = ?, monto = ?
-        WHERE id = ?
-        `,
-        [evento, concepto, destino, monto, id]
+      SET evento = ?, concepto = ?, destino = ?, monto = ?
+      WHERE id = ?`,
+      [evento, concepto, destino, monto, id]
     );
-
     res.json({ ok: true });
-
   } catch (error) {
     console.error(error);
     apiError(res, "BUSINESS_RULE", "Error actualizando evento");

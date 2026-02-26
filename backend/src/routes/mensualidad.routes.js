@@ -99,6 +99,41 @@ router.get('/deudores', async (req, res) => {
   }
 });
 
+router.get("/morosidad", async (req, res) => {
+  try {
+    const { month, year } = req.query;
 
+    if (!month || !year) {
+      return apiError(res, "VALIDATION_ERROR", "Mes y año requeridos");
+    }
+
+    const [[result]] = await pool.query(`
+      SELECT 
+        COUNT(*) AS total,
+        SUM(CASE WHEN estado = 'PAGADO' THEN 1 ELSE 0 END) AS pagados,
+        SUM(CASE WHEN estado = 'PENDIENTE' THEN 1 ELSE 0 END) AS pendientes
+      FROM mensualidades
+      WHERE mes = ? AND anio = ?
+    `, [month, year]);
+
+    const total = result.total || 0;
+    const pendientes = result.pendientes || 0;
+
+    const porcentaje = total > 0 
+      ? Number(((pendientes / total) * 100).toFixed(2))
+      : 0;
+
+    res.json({
+      total,
+      pagados: result.pagados || 0,
+      pendientes,
+      porcentaje_morosidad: porcentaje
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error obteniendo morosidad" });
+  }
+});
 
 module.exports = router;

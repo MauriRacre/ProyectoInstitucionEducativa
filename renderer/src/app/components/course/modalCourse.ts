@@ -22,7 +22,7 @@ export class ModalCourseComponent implements OnChanges {
 
     form: FormGroup;
 
-    types = ['MONTHLY' , 'SERVICE' , 'FEE' , 'FINE' , 'OTHER'];
+    types = ['SERVICIO'];
 
     constructor(private fb: FormBuilder) {
         this.form = this.fb.group({

@@ -18,7 +18,7 @@ export const routes: Routes = [
         { path: '', component: Directory },
         { path: 'cobro-tutor/:id', component: PayPage },
         { path: 'history', component: HistoryPage },
-        { path: 'register', component: RegisterPage},
+        { path: 'register/:id', component: RegisterPage},
         {
             path: 'settings',
             component: SettingsComponent,

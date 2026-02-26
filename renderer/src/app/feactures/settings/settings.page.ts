@@ -20,6 +20,7 @@ interface EventRow {
   id: number;
   nombre: string;
   concepto: string;
+  monto: number;
   destino: string;
 }
 
@@ -38,7 +39,7 @@ export class SettingsComponent implements OnInit{
     private toast: ToastService
   ){}
   
-  courses: CategoryDTO[] = [];
+  courses: any[] = [];
   events: EventRow[] = [];
   users: User[] = [];
   categories: string[] = [];
@@ -57,10 +58,11 @@ export class SettingsComponent implements OnInit{
         next: (res) => {
           this.courses = res.map(x => ({
             id : x.id,
-            name: x.name,
-            type: x.type,
-            active: x.active,
+            name: x.nombre,
+            type: "Servicio",
+            active: x.activo,
           }));
+          console.log(res);
         },
         error: (err) => {
           console.error(err);
@@ -77,6 +79,7 @@ export class SettingsComponent implements OnInit{
           id: x.id,
           nombre: x.evento,
           concepto: x.concepto,
+          monto: Number(x.monto),
           destino: x.destino,
         }));
         console.log(this.events);

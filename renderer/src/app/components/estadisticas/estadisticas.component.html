@@ -1,0 +1,214 @@
+<div class="p-6 space-y-10">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+            <h1 class="text-base sm:text-base font-semibold text-gray-900">Estadisticas</h1>
+            <p class="text-sm text-gray-500">Ingresos totales, por mes, descuentos, etc.</p>
+        </div>
+        <button
+            type="button"
+            (click)="exportStatsPdf()"
+            class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 shadow-sm hover:bg-gray-50"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" class="w-5"><path d="M240 112L128 112C119.2 112 112 119.2 112 128L112 512C112 520.8 119.2 528 128 528L208 528L208 576L128 576C92.7 576 64 547.3 64 512L64 128C64 92.7 92.7 64 128 64L261.5 64C278.5 64 294.8 70.7 306.8 82.7L429.3 205.3C441.3 217.3 448 233.6 448 250.6L448 400.1L400 400.1L400 272.1L312 272.1C272.2 272.1 240 239.9 240 200.1L240 112.1zM380.1 224L288 131.9L288 200C288 213.3 298.7 224 312 224L380.1 224zM272 444L304 444C337.1 444 364 470.9 364 504C364 537.1 337.1 564 304 564L292 564L292 592C292 603 283 612 272 612C261 612 252 603 252 592L252 464C252 453 261 444 272 444zM304 524C315 524 324 515 324 504C324 493 315 484 304 484L292 484L292 524L304 524zM400 444L432 444C460.7 444 484 467.3 484 496L484 560C484 588.7 460.7 612 432 612L400 612C389 612 380 603 380 592L380 464C380 453 389 444 400 444zM432 572C438.6 572 444 566.6 444 560L444 496C444 489.4 438.6 484 432 484L420 484L420 572L432 572zM508 464C508 453 517 444 528 444L576 444C587 444 596 453 596 464C596 475 587 484 576 484L548 484L548 508L576 508C587 508 596 517 596 528C596 539 587 548 576 548L548 548L548 592C548 603 539 612 528 612C517 612 508 603 508 592L508 464z"/></svg>
+            Exportar PDF
+        </button>
+    </div>
+    <!-- KPIs -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <div class="bg-white rounded-2xl shadow-md p-8 flex items-center justify-between">
+        <div>
+            <p class="text-gray-500 text-sm">Total Estudiantes</p>
+            <h2 class="text-4xl font-bold text-gray-800 mt-2">
+            {{ totalEstudiantes }}
+            </h2>
+        </div>
+        <div class="bg-blue-100 text-blue-600 p-4 rounded-full">
+            👨‍🎓
+        </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-md p-8 flex items-center justify-between">
+        <div>
+            <p class="text-gray-500 text-sm">Total Tutores</p>
+            <h2 class="text-4xl font-bold text-gray-800 mt-2">
+            {{ totalTutores }}
+            </h2>
+        </div>
+        <div class="bg-green-100 text-green-600 p-4 rounded-full">
+            👨‍👩‍👧
+        </div>
+        </div>
+
+    </div>
+
+    <!-- INGRESOS ANUAL -->
+    <div class="bg-white rounded-2xl shadow-md p-8">
+        <h3 class="text-lg font-semibold text-gray-800 mb-6">
+            Ingresos Anuales {{ selectedYear }}
+        </h3>
+
+        <div class="h-80 flex items-center justify-center">
+
+            <ng-container *ngIf="hasIngresosAnual; else noIngresosAnual">
+            <canvas #ingresosAnualCanvas></canvas>
+            </ng-container>
+
+            <ng-template #noIngresosAnual>
+            <div class="text-center text-gray-400">
+                📊 No existen ingresos registrados este año.
+            </div>
+            </ng-template>
+
+        </div>
+    </div>
+
+    <!-- SELECTOR DE MES -->
+    <div class="bg-white rounded-2xl shadow-md p-6">
+
+        <div class="flex flex-wrap gap-2">
+        <button
+            *ngFor="let mes of meses"
+            (click)="selectMonth(mes.id)"
+            class="px-4 py-2 text-sm rounded-full transition-all duration-200"
+            [ngClass]="{
+            'bg-celeste text-white shadow-md': selectedMonth === mes.id,
+            'bg-gray-100 text-gray-600 hover:bg-gray-200': selectedMonth !== mes.id
+            }">
+            {{ mes.nombre }}
+        </button>
+        </div>
+
+        <p class="mt-4 text-gray-500 text-sm">
+        Visualizando datos de 
+        <span class="font-semibold text-gray-700">
+            {{ getMonthName() }} {{ selectedYear }}
+        </span>
+        </p>
+
+    </div>
+
+    <!-- INSCRITOS + INGRESOS CURSO -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+        <div class="bg-white rounded-2xl shadow-md p-8">
+            <h3 class="text-lg font-semibold text-gray-800 mb-6">
+                Inscritos por Curso
+            </h3>
+            <div class="h-72 flex items-center justify-center">
+                <ng-container *ngIf="hasInscritos; else noInscritos">
+                <canvas #inscritosCanvas></canvas>
+                </ng-container>
+                <ng-template #noInscritos>
+                <div class="text-center text-gray-400">
+                    👨‍🏫 No hay estudiantes inscritos en {{ getMonthName() }}.
+                </div>
+                </ng-template>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-md p-8">
+            <h3 class="text-lg font-semibold text-gray-800 mb-6">
+                Ingresos por Curso
+            </h3>
+            <div class="h-72 flex items-center justify-center">
+                <ng-container *ngIf="hasIngresosCursos; else noIngresosCursos">
+                <canvas #ingresosCursosCanvas></canvas>
+                </ng-container>
+                <ng-template #noIngresosCursos>
+                <div class="text-center text-gray-400">
+                    💰 No se registraron ingresos en {{ getMonthName() }}.
+                </div>
+                </ng-template>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- RANKING + MOROSIDAD -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+        <div class="bg-white rounded-2xl shadow-md p-8">
+            <h3 class="text-lg font-semibold text-red-600 mb-6">
+                Top 5 Morosos
+            </h3>
+            <ng-container *ngIf="hasRanking; else noRanking">
+                <ul class="space-y-3">
+                    <li *ngFor="let r of getTopMorosos()"
+                        class="flex justify-between bg-red-50 px-4 py-2 rounded-lg">
+                    <span class="text-gray-700">{{ r.nombre }}</span>
+                    <span class="font-semibold text-red-600">
+                        {{ r.pendientes }}
+                    </span>
+                    </li>
+                </ul>
+            </ng-container>
+            <ng-template #noRanking>
+                <div class="text-center text-gray-400">
+                🎉 No hay registros para generar ranking este mes.
+                </div>
+            </ng-template>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-md p-8">
+            <h3 class="text-lg font-semibold text-green-600 mb-6">
+                Top 5 Puntuales
+            </h3>
+            <ng-container *ngIf="hasRanking; else noRanking">
+                <ul class="space-y-3">
+                    <li *ngFor="let r of getTopPuntuales()"
+                        class="flex justify-between bg-green-50 px-4 py-2 rounded-lg">
+                    <span class="text-gray-700">{{ r.nombre }}</span>
+                    <span class="font-semibold text-green-600">
+                        {{ r.pagados }}
+                    </span>
+                    </li>
+                </ul>
+            </ng-container>
+            <ng-template #noRanking>
+                <div class="text-center text-gray-400">
+                🎉 No hay registros para generar ranking este mes.
+                </div>
+            </ng-template>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-md p-8">
+            <h3 class="text-lg font-semibold text-gray-800 mb-6">
+                Morosidad
+            </h3>
+
+            <div class="h-60 flex items-center justify-center">
+                <ng-container *ngIf="hasMorosidad; else noMorosidad">
+                <canvas #morosidadCanvas></canvas>
+                </ng-container>
+                <ng-template #noMorosidad>
+                <div class="text-center text-gray-400">
+                    ✅ No hay morosidad registrada en {{ getMonthName() }}.
+                </div>
+                </ng-template>
+            </div>
+        </div>
+    </div>
+
+    <!-- DESCUENTOS -->
+    <div class="bg-white rounded-2xl shadow-md p-8">
+        <h3 class="text-lg font-semibold text-gray-800 mb-6">
+            Descuentos Anuales
+        </h3>
+
+        <div class="h-72 flex items-center justify-center">
+
+            <ng-container *ngIf="hasDescuentos; else noDescuentos">
+            <canvas #descuentosCanvas></canvas>
+            </ng-container>
+
+            <ng-template #noDescuentos>
+            <div class="text-center text-gray-400">
+                🧾 No existen descuentos registrados este año.
+            </div>
+            </ng-template>
+
+        </div>
+    </div>
+
+</div>

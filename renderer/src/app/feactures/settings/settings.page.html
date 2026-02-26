@@ -147,7 +147,7 @@
                                 <td class="px-5 py-4">{{e.nombre}}</td>
                                 <td class="px-5 py-4">{{e.concepto}}</td>
                                 <td class="px-5 py-4">{{e.destino}}</td>
-                                <td class="px-5 py-4">Bs. </td>
+                                <td class="px-5 py-4">Bs. {{e.monto | number: '1.2-2'}}</td>
                                 <td class="px-5 py-4 text-right">
                                     <div class="inline-flex gap-2">
                                         <button 
@@ -205,7 +205,6 @@
                                 <th class="px-5 py-3">#</th>
                                 <th class="px-5 py-3">Nombre</th>
                                 <th class="px-5 py-3">Tipo</th>
-                                <th class="px-4 py-3">Monto</th>
                                 <th class="px-5 py-3">Activo</th>
                                 <th class="px-5 py-3 text-right">Acciones</th>
                             </tr>
@@ -216,7 +215,6 @@
                                 <td class="px-5 py-4">{{c.id}}</td>
                                 <td class="px-5 py-4">{{c.name}}</td>
                                 <td class="px-5 py-4">{{c.type}}</td>
-                                <td class="px-5 py-4">Bs. </td>
                                 <td class="px-5 py-4">
                                     <span
                                         class="w-fit rounded-xl px-2.5 py-1 text-xs font-semibold"

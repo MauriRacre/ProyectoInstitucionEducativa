@@ -9,6 +9,9 @@ import autoTable from 'jspdf-autotable';
 import { ToastService } from '../../core/toast/toast.service';
 import { ModalService } from '../../core/swal/swal.service';
 import { GastoModal, ExpenseMode, ExpenseFormValue } from '../../components/gasto/modalGasto';
+import { EstadisticasService } from '../../core/services/estadisticas.service';
+import { forkJoin } from 'rxjs';
+import { EstadisticasComponent } from '../../components/estadisticas/estadisticas.component';
 type TxType = 'PAYMENT' | 'EXPENSE' | 'REVERSAL';
 type TabKey = 'transacciones' | 'estadisticas' | 'nomina';
 
@@ -22,17 +25,28 @@ interface Filters {
 @Component({
   selector: 'app-history',
   standalone: true,
-  imports: [CommonModule, FormsModule, GastoModal],
+  imports: [CommonModule, FormsModule, GastoModal, EstadisticasComponent],
   templateUrl: './history.page.html',
 })
 export class HistoryPage implements OnInit {
+  /**VARIABLES ESTADISTICAS */
+  year = new Date().getFullYear();
+  month = new Date().getMonth() + 1;
+
+  totalEstudiantes = 0;
+  totalTutores = 0;
+  morosidad: any;
+  inscritos: any[] = [];
+  ingresosCursos: any[] = [];
+  ingresosAnual: any;
+  ranking: any[] = [];
+  descuentos: any[] = [];
   /** TABS VARIABLES */
   selectedTab: TabKey = 'transacciones';
   isLoading = false;
   apiError = '';
   /** TRANSACCIONES VARIABLES */
   transacciones: TransactionItem[] = [];
-  
   paged: TransactionItem[] = [];
   concepts: string[] = [];
   filters: Filters = { q: '', from: '', to: '', concept: '' };
@@ -69,7 +83,8 @@ export class HistoryPage implements OnInit {
     private studentService: StudentService,
     private statsService: StatsService,
     private toast: ToastService,
-    private modal: ModalService
+    private modal: ModalService,
+    private estadisticasService: EstadisticasService
   ) {}
 
   ngOnInit(): void {
@@ -77,7 +92,11 @@ export class HistoryPage implements OnInit {
     this.loadConcepts();
     this.loadStatistics();
   }
-
+  onMonthChange(month: number){
+    this.month = month;
+    this.loadStatistics();
+  }
+  
   setTab(tab: TabKey) {
     this.selectedTab = tab;
     this.page = 1;
@@ -164,18 +183,25 @@ export class HistoryPage implements OnInit {
     });
   }
   loadStatistics(): void {
-    this.statsService.list().subscribe({
-      next: (res) => {
-        this.kpis = {
-          totalIncome: Number(res.totalIngresos),
-          monthIncome: Number(res.ingresosMes),
-          totalDiscounts: Number(res.descuentos),
-          totalReversals: Number(res.reversiones)
-        };
-      },
-      error: (err) => {
-        console.error(err);
-      }
+    forkJoin({
+      estudiantes: this.estadisticasService.getTotalEstudiantes(),
+      tutores: this.estadisticasService.getTotalTutores(),
+      ingresosAnual: this.estadisticasService.getIngresosPorMes(this.year),
+      morosidad: this.estadisticasService.getMorosidad(this.month, this.year),
+      inscritos: this.estadisticasService.getInscritosCursos(this.month, this.year),
+      ingresosCursos: this.estadisticasService.getIngresosCursos(this.month, this.year),
+      ranking: this.estadisticasService.getRankingEstudiantes(this.month, this.year),
+      descuentos: this.estadisticasService.getDescuentosAnual(this.year)
+    }).subscribe(res => {
+      this.totalEstudiantes = res.estudiantes.total;
+      this.totalTutores = res.tutores.total;
+      this.ingresosAnual = res.ingresosAnual;
+      this.morosidad = res.morosidad;
+      this.inscritos = res.inscritos;
+      this.ingresosCursos = res.ingresosCursos;
+      this.ranking = res.ranking;
+      this.descuentos = res.descuentos;
+      console.log(this.totalEstudiantes, this.totalTutores, this.ingresosAnual, this.morosidad, this.inscritos, this.ingresosCursos, this.ranking, this.descuentos);
     });
   }
   /** TRANSACCIONES */
@@ -226,100 +252,7 @@ export class HistoryPage implements OnInit {
     this.applyFilters();
   }
   /** PDF */
-  exportStatsPdf(): void {
-    const doc = new jsPDF('portrait');
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.text('UNIDAD EDUCATIVA MARAVILLAS DEL SABER', pageWidth / 2, 18, { align: 'center' });
-
-    doc.setFontSize(14);
-    doc.text('Reporte Estadístico Financiero', pageWidth / 2, 28, { align: 'center' });
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Fecha de emisión: ${new Date().toLocaleDateString('es-BO')}`, 14, 38);
-
-    doc.setDrawColor(200);
-    doc.line(14, 42, pageWidth - 14, 42);
-
-    const startY = 60;
-
-    const drawCard = (title: string, value: string, y: number) => {
-      doc.setDrawColor(230);
-      doc.setFillColor(248, 250, 252);
-      doc.roundedRect(20, y, pageWidth - 40, 28, 4, 4, 'FD');
-
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'normal');
-      doc.text(title, 26, y + 10);
-
-      doc.setFontSize(16);
-      doc.setFont('helvetica', 'bold');
-      doc.text(value, pageWidth - 26, y + 18, { align: 'right' });
-    };
-
-    drawCard(
-      'Ingresos Totales',
-      `Bs. ${this.kpis.totalIncome.toFixed(2)}`,
-      startY
-    );
-
-    drawCard(
-      'Ingresos del Mes',
-      `Bs. ${this.kpis.monthIncome.toFixed(2)}`,
-      startY + 38
-    );
-
-    drawCard(
-      'Descuentos Registrados',
-      `Bs. ${this.kpis.totalDiscounts.toFixed(2)}`,
-      startY + 76
-    );
-
-    drawCard(
-      'Cantidad de Reversiones',
-      `${this.kpis.totalReversals}`,
-      startY + 114
-    );
-
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Resumen General', 14, 190);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
-
-    const balance =
-      this.kpis.totalIncome -
-      this.kpis.totalDiscounts;
-
-    doc.text(
-      `Balance Neto Actual: Bs. ${balance.toFixed(2)}`,
-      14,
-      200
-    );
-
-    doc.setFontSize(9);
-    doc.setTextColor(150);
-    doc.text(
-      'Sistema de Gestión Escolar',
-      14,
-      pageHeight - 10
-    );
-
-    doc.text(
-      `Página 1`,
-      pageWidth - 14,
-      pageHeight - 10,
-      { align: 'right' }
-    );
-    const pdfBlob = doc.output('blob');
-    const url = URL.createObjectURL(pdfBlob);
-    window.open(url);
-  }
+  
 
   exportPdf(): void {
     this.txService.searchTransactions({

@@ -12,6 +12,7 @@ export interface Evento {
     id: number;
     evento: string;
     concepto: string;
+    monto: number;
     destino: string;
 }
 
@@ -43,34 +44,23 @@ export class EventoService {
         return this.http.get<Evento>(`${this.baseUrl}/${id}`);
     }
 
-    // ========================================
-    // CREATE
-    // ========================================
     create(payload: {
         evento: string;
         concepto: string;
         destino: string;
-    }): Observable<any> {
-        return this.http.post<any>(
-        this.baseUrl,
-        payload
-        );
+        monto: number;
+        }): Observable<any> {
+        return this.http.post<any>(this.baseUrl, payload);
     }
 
-    // ========================================
-    // UPDATE
-    // ========================================
     update(id: number, payload: {
         evento: string;
         concepto: string;
         destino: string;
-    }): Observable<any> {
-        return this.http.put<any>(
-        `${this.baseUrl}/${id}`,
-        payload
-        );
+        monto: number;
+        }): Observable<any> {
+        return this.http.put<any>(`${this.baseUrl}/${id}`, payload);
     }
-
     // ========================================
     // DELETE (soft delete)
     // ========================================

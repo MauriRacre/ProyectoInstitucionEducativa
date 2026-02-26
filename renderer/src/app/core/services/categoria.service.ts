@@ -30,7 +30,7 @@ export class CategoryService{
             .pipe(map(res => res.categories));
     }
     /** GET categorias */
-    getAllTwo():Observable<CategoryDTO[]>{
+    getAllTwo():Observable<any[]>{
         return this.http.get<CategoryDTO[]>(this.baseUrl2);
     }
     getCategorias(): Observable<CategoryDTO[]>{
