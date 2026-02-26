@@ -38,6 +38,73 @@ router.get('/tutor/:tutorId', async (req, res) => {
   }
 });
 
+router.get("/cuotas-creadas", async (req, res) => {
+  try {
+    const { estudiante_id, year } = req.query;
+
+    if (!estudiante_id || !year) {
+      return apiError(res, "VALIDATION_ERROR", "estudiante_id y year son requeridos");
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT mes
+      FROM mensualidades
+      WHERE estudiante_id = ?
+        AND anio = ?
+      ORDER BY mes ASC
+      `,
+      [estudiante_id, year]
+    );
+
+    const mesesPagados = rows.map(r => Number(r.mes));
+
+    res.json({
+      estudiante_id: Number(estudiante_id),
+      year: Number(year),
+      meses_creados: mesesPagados
+    });
+
+  } catch (error) {
+    console.error(error);
+    apiError(res, "BUSINESS_RULE", "Error obteniendo meses pagados");
+  }
+});
+
+router.get("/servicios-creados", async (req, res) => {
+  try {
+    const { estudiante_id, year } = req.query;
+
+    if (!estudiante_id || !year) {
+      return apiError(res, "VALIDATION_ERROR", "estudiante_id y year son requeridos");
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT mes
+      FROM estudiante_servicio
+      WHERE estudiante_id = ?
+        AND anio = ?
+        AND estado!="CANCELADO"
+      ORDER BY mes ASC
+      `,
+      [estudiante_id, year]
+    );
+
+    const mesesPagados = rows.map(r => Number(r.mes));
+
+    res.json({
+      estudiante_id: Number(estudiante_id),
+      year: Number(year),
+      servicios_creados: mesesPagados
+    });
+
+  } catch (error) {
+    console.error(error);
+    apiError(res, "BUSINESS_RULE", "Error obteniendo meses pagados");
+  }
+});
+
 router.get("/", async (req, res) => {
   const [rows] = await pool.query(`
     SELECT 

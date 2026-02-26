@@ -6,7 +6,7 @@ const { apiError } = require("../utils/apiError");
 router.get("/", async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, evento, concepto, destino
+      `SELECT id, evento, concepto, destino, monto
         FROM eventos
         WHERE activo = 1
         ORDER BY id`
@@ -24,7 +24,7 @@ router.get("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const [[event]] = await pool.query(
-      `SELECT id, evento, concepto, destino
+      `SELECT id, evento, concepto, destino, monto
        FROM eventos
        WHERE id = ?`,
       [req.params.id]
@@ -44,12 +44,12 @@ router.get("/:id", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const { evento, concepto, destino } = req.body;
-
+    const { evento, concepto, destino, monto } = req.body;
+    
     const [result] = await pool.query(
-      `INSERT INTO eventos (evento, concepto, destino)
-       VALUES (?, ?, ?)`,
-      [evento, concepto, destino]
+      `INSERT INTO eventos (evento, concepto, destino, monto)
+        VALUES (?, ?, ?, ?)`,
+      [evento, concepto, destino, monto]
     );
 
     res.status(201).json({ id: result.insertId });
@@ -66,9 +66,10 @@ router.put("/:id", async (req, res) => {
 
     await pool.query(
       `UPDATE eventos
-       SET evento = ?, concepto = ?, destino = ?
-       WHERE id = ?`,
-      [evento, concepto, destino, req.params.id]
+        SET evento = ?, concepto = ?, destino = ?, monto = ?
+        WHERE id = ?
+        `,
+        [evento, concepto, destino, monto, id]
     );
 
     res.json({ ok: true });

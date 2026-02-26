@@ -7,13 +7,13 @@ const { apiError } = require("../utils/apiError");
 
 
 router.get("/", async (req, res) => {
-  const [rows] = await pool.query("SELECT * FROM categorias");
+  const [rows] = await pool.query("SELECT * FROM servicios");
   res.json(rows);
 });
 
 router.get("/categorias/modal", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM categorias");
+    const [rows] = await pool.query("SELECT * FROM servicios");
 
     const categorias = rows;
 
