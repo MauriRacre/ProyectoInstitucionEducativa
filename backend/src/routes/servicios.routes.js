@@ -98,6 +98,67 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+router.patch("/:id/desuscribir", async (req, res) => {
+  const conn = await pool.getConnection();
+
+  try {
+    const { id } = req.params;
+
+    await conn.beginTransaction();
+
+    const [[registro]] = await conn.query(
+      `
+      SELECT * 
+      FROM estudiante_servicio
+      WHERE id = ?
+      `,
+      [id]
+    );
+
+    if (!registro) {
+      await conn.rollback();
+      return apiError(res, "NOT_FOUND", "Registro no encontrado");
+    }
+
+    if (registro.estado === "CANCELADO") {
+      await conn.rollback();
+      return apiError(res, "CONFLICT", "El alumno ya está desinscrito");
+    }
+
+    if (registro.estado === "PAGADO") {
+      await conn.rollback();
+      return apiError(
+        res,
+        "BUSINESS_RULE",
+        "No se puede desinscribir porque ya está pagado"
+      );
+    }
+
+    await conn.query(
+      `
+      UPDATE estudiante_servicio
+      SET estado = 'CANCELADO'
+      WHERE id = ?
+      `,
+      [id]
+    );
+
+    await conn.commit();
+
+    res.json({
+      ok: true,
+      message: "Alumno desinscrito correctamente"
+    });
+
+  } catch (error) {
+    await conn.rollback();
+    console.error(error);
+    apiError(res, "BUSINESS_RULE", "Error desinscribiendo alumno");
+  } finally {
+    conn.release();
+  }
+});
+
 router.get('/student/:studentId', async (req, res) => {
   try {
 
