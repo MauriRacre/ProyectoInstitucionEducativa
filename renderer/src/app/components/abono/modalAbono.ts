@@ -209,9 +209,17 @@ export class ModalAbono {
     } catch (e) {
       this.errorMsg = 'No se pudo guardar el cargo. Intenta nuevamente.';
     } finally {
-      this.loading = false;
       this.setFormDisabled(false);
+      this.form.reset({
+        estudiante: '',
+        categoria: '',
+        meses: [],          
+        monto: 0,
+        descuento: 0,       
+        destino: 'PAGAR_AHORA',
+      });
     }
+      this.loading = false;
   }
   private setFormDisabled(disabled: boolean) {
     if (disabled) {

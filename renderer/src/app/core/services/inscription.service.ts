@@ -57,26 +57,11 @@ export class InscriptionService {
 
     constructor(private http: HttpClient) {}
 
-    /* ===============================
-        VIEW INSCRIPTION
-    =============================== */
-
-    getInscriptionView(
-        tutorId: number,
-        year: number,
-        includeHistory = true
-    ): Observable<TutorViewResponse> {
-
-        const params = new HttpParams()
-        .set('year', year)
-        .set('includeHistory', includeHistory);
-
-        return this.http.get<TutorViewResponse>(
-        `${this.baseUrl}/tutores/${tutorId}/inscription-view`,
-        { params }
-        );
+    getByStudentId(studentId: number) {
+      return this.http.get<any>(
+        `${this.baseUrl}/estudiantes/servicios/${studentId}`
+      );
     }
-
     /* ===============================
         INSCRIBIR
     =============================== */
@@ -90,7 +75,7 @@ export class InscriptionService {
         discount_amount?: number;
     }) {
         return this.http.post(
-        `${enviroment.apiUrl}/servicios`,
+        `${this.baseUrl}/servicios/`,
         payload
         );
     }
@@ -101,7 +86,7 @@ export class InscriptionService {
 
     unsubscribe(registroId: number) {
         return this.http.patch(
-        `${enviroment.apiUrl}/servicios/${registroId}/desuscribir`,
+        `${this.baseUrl}/servicios/${registroId}/desuscribir`,
         {}
         );
     }

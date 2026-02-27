@@ -15,6 +15,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { ReciboService } from '../../core/services/recibo.service';
 import { StudentService } from '../../core/services/estudiantes.service';
+import { InscriptionService } from '../../core/services/inscription.service';
 
 type Parallel = 'A' | 'B' | 'C';
 type Grade = 'Kinder' | 'Pre-Kinder' | '1er' | '2do' | '3ro' | '4to' | '5to' | '6to';
@@ -102,6 +103,7 @@ export class PayPage implements OnInit{
     private paymentApi: PaymentService,
     private auth: AuthService,
     private reciboNum: ReciboService,
+    private inscriptionService: InscriptionService,
     private estudianteService: StudentService
   ) {}
 
@@ -687,7 +689,7 @@ export class PayPage implements OnInit{
       descuento: number,
     }[]
   ) {
-
+    console.log(movimientos, 'factura');
     if (!movimientos.length) {
       this.toast.error('No hay pagos para generar recibo');
       return;
@@ -846,15 +848,14 @@ export class PayPage implements OnInit{
   }
   /** Modal Abono */
   studentOptions: { id: number; name: string }[] = [];
-
-
   categorias: string[] = [];
   mesesBloqueadosPorCategoria: Record<string, number[]> = {};
-
+  serviciosMap: Record<string, number> = {};
   fetchCategorias(estudianteId: number) {
     const year = new Date().getFullYear();
     this.categorias = [];
     this.mesesBloqueadosPorCategoria = {};
+    this.serviciosMap = {};
     forkJoin({
       cuotas: this.estudianteService.getCuotasCreadas(estudianteId, year),
       servicios: this.estudianteService.getServiciosCreados(estudianteId, year)
@@ -875,6 +876,7 @@ export class PayPage implements OnInit{
 
           const nombre = s?.nombre_servicio;
           const mesNumero = Number(s?.mes);
+          const servicioId = Number(s?.servicio_id);
 
           if (!nombre || !Number.isFinite(mesNumero)) return;
 
@@ -883,6 +885,9 @@ export class PayPage implements OnInit{
           }
 
           mapa[nombre].push(mesNumero);
+          if(servicioId){
+            this.serviciosMap[nombre] = servicioId;
+          }
         });
 
         this.mesesBloqueadosPorCategoria = mapa;
@@ -899,6 +904,9 @@ export class PayPage implements OnInit{
   closeModalAbono(){
     this.showModalAbono = false;
   }
+  private getServicioIdByNombre(nombre: string): number | null {
+    return this.serviciosMap[nombre] ?? null;
+  }
   async onSaved(payload: {
     estudiante: number;  
     categoria: string;
@@ -909,7 +917,7 @@ export class PayPage implements OnInit{
     total: number;
     destino: DestinoPago;
   }) {
-    console.log(payload);
+
     const year = new Date().getFullYear();
 
     const monthMap: Record<string, number> = {
@@ -924,46 +932,105 @@ export class PayPage implements OnInit{
         .toLowerCase()
         .trim();
 
-    const tipo =
-      normalize(payload.categoria) === "mensualidad"
-        ? "MENSUALIDAD"
-        : "SERVICIO";
-    console.log(tipo);
-    try {
-      const descuentoPorMes = Math.round(
-        (payload.descuento / payload.meses.length) * 100
-      ) / 100;
-      
-      for (const mes of payload.meses) {
+    const isMensualidad =
+    normalize(payload.categoria) === "mensualidad";
 
-        const mensualidad = await firstValueFrom(this.paymentApi.createMensualidad({
-          estudiante_id: payload.estudiante,
-          period: {
-            year,
-            month: monthMap[mes]
-          },
-          base_amount: payload.montoUnitario,
-          extra_amount: 0,
-          discount_amount: descuentoPorMes,
-          tipo: tipo,
-          nombre_servicio: tipo === "SERVICIO" ? payload.categoria : null
-        }));
-        console.log(mensualidad);
+    const tipo = isMensualidad ? "MENSUALIDAD" : "SERVICIO";
+    try {
+      const cantidadMeses = payload.meses.length || 1;
+      const descuentoPorMes = Math.round((payload.descuento / cantidadMeses) * 100) / 100;
+      const movimientosFactura: {
+        childId: number,
+        conceptos: { concepto: string, monto: number }[],
+        descuento: number,
+      }[] = [];
+      const conceptosFactura: { concepto: string, monto: number }[] = [];
+      let descuentoTotal = 0;
+
+      for (const mes of payload.meses) {
+        const monthNumber = monthMap[mes];
+        if (!monthNumber) continue;
+
+        let created: any;
+        if (isMensualidad) {
+
+          created = await firstValueFrom(
+            this.paymentApi.createMensualidad({
+              estudiante_id: payload.estudiante,
+              period: {
+                year,
+                month: monthNumber
+              },
+              base_amount: payload.montoUnitario,
+              extra_amount: 0,
+              discount_amount: descuentoPorMes,
+              tipo: "MENSUALIDAD",
+              nombre_servicio: null
+            })
+          );
+
+        } else {
+
+          const servicioId = this.getServicioIdByNombre(payload.categoria);
+
+          if (!servicioId) {
+            throw new Error('Servicio no encontrado');
+          }
+
+          created = await firstValueFrom(
+            this.inscriptionService.enroll({
+              estudiante_id: payload.estudiante,
+              servicio_id: servicioId,
+              period: {
+                year,
+                month: monthNumber
+              },
+              base_amount: payload.montoUnitario,
+              extra_amount: 0,
+              discount_amount: descuentoPorMes
+            })
+          );
+
+        }
         if (payload.destino === 'PAGAR_AHORA') {
-          await firstValueFrom(this.paymentApi.registerMovement(
-            mensualidad!.id,
-            tipo,
-            {
-              paid: payload.montoUnitario - descuentoPorMes,
-              discount: 0,
-              responsible: this.currentUserName
-            }
-          ));
+
+          const conceptId = created?.id;
+
+          if (!conceptId) {
+            throw new Error('No se pudo obtener el id del concepto');
+          }
+
+          await firstValueFrom(
+            this.paymentApi.registerMovement(
+              conceptId,
+              tipo,
+              {
+                paid: payload.montoUnitario - descuentoPorMes,
+                discount: 0,
+                responsible: this.currentUserName
+              }
+            )
+          );
+          conceptosFactura.push({
+            concepto: `${payload.categoria} - ${mes}`,
+            monto: payload.montoUnitario - descuentoPorMes
+          });
+
+          descuentoTotal += descuentoPorMes;
         }
       }
-      this.closeModalAbono();
-      this.toast.success('Cargo registrado correctamente');
-      this.fetchPayView(this.idTutor);
+    this.closeModalAbono();
+    if (payload.destino === 'PAGAR_AHORA' && conceptosFactura.length) {
+      movimientosFactura.push({
+        childId: Number( payload.estudiante),
+        conceptos: conceptosFactura,
+        descuento: descuentoTotal
+      });
+      console.log(movimientosFactura);
+      await this.facturaPdf(movimientosFactura);
+    }
+    this.toast.success('Cargo registrado correctamente');
+    this.fetchPayView(this.idTutor);
 
     } catch (error) {
       console.error(error);

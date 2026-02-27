@@ -63,7 +63,7 @@ export class TutorApiService {
 
         return this.http.get<TutorListResponse>(`${this.baseUrl}${this.resource}`, { params: hp });
     }
-
+    /**tutor con estudiantes id  */
     getById(tutorId: number) {
         return this.http.get<TutorDetailResponse>(`${this.baseUrl}${this.resource}/${tutorId}`);
     }

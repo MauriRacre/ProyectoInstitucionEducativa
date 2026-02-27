@@ -158,7 +158,7 @@ router.get("/total", async (req, res) => {
     apiError(res, "BUSINESS_RULE", "Error obteniendo total de tutores");
   }
 });
-
+//tutor con id y estudiantes con id 
 router.get("/:tutorId", async (req, res) => {
   try {
     const { tutorId } = req.params;

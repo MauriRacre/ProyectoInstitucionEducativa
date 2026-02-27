@@ -8,7 +8,7 @@
             </svg>
         </a>
         <div>
-            <h1 class="text-2xl font-semibold text-gray-900">
+            <h1 class="text-2xl font-semibold text-gray-900 text-center">
             Gestión de cursos
             </h1>
             <p class="text-sm text-gray-500">
@@ -49,7 +49,7 @@
             </p>
             </div>
             <button
-            (click)="addCourse(child.id)"
+            (click)="openEnrollModal(child.id)"
             class="bg-celeste hover:bg-celeste text-white font-semibold text-sm px-4 py-2 rounded-md transition">
             + Agregar
             </button>
@@ -59,9 +59,9 @@
 
             <div *ngFor="let c of child.courses"
                 class="flex justify-between items-center bg-gray-50 rounded-md px-3 py-2">
-            <span class="text-sm text-gray-700">{{ c }}</span>
+            <span class="text-sm text-gray-700">{{ c.nombre }}</span>
             <button
-                (click)="deleteCourse(child.id, c)"
+                (click)="deleteCourse(child.id, c.inscripcionId)"
                 class="text-red-600 hover:text-red-800 text-sm">
                 Eliminar
             </button>
@@ -77,3 +77,56 @@
 
     </div>
 </div>
+<ng-container *ngIf="showModal">
+    <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-xl w-96">
+
+            <h3 class="text-lg font-semibold mb-4">
+                Inscribir a curso extra
+            </h3>
+
+            <div class="space-y-3">
+
+            <select [(ngModel)]="selectedServicioId"
+                    class="w-full border rounded-lg p-2">
+                <option [ngValue]="null">Seleccionar curso</option>
+                <option *ngFor="let c of availableCourses"
+                        [ngValue]="c.id">
+                {{ c.nombre }}
+                </option>
+            </select>
+
+            <input type="number"
+                    [(ngModel)]="baseAmount"
+                    placeholder="Monto base"
+                    min="0"
+                    class="w-full border rounded-lg p-2" />
+
+            <input type="number"
+                    [(ngModel)]="discountAmount"
+                    placeholder="Descuento"
+                    min="0"
+                    class="w-full border rounded-lg p-2" />
+
+            <p *ngIf="modalError"
+                class="text-red-600 text-sm">
+                {{ modalError }}
+            </p>
+
+            </div>
+
+            <div class="flex justify-end gap-2 mt-4">
+                <button (click)="closeModal()"
+                class="px-4 py-2 bg-gray-200 rounded-lg">
+                Cancelar
+                </button>
+
+                <button (click)="enrollStudent()"
+                class="px-4 py-2 bg-celeste text-white rounded-lg">
+                Inscribir
+                </button>
+            </div>
+
+        </div>
+    </div>
+</ng-container>
