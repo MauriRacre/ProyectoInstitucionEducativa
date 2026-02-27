@@ -83,18 +83,23 @@ router.get("/servicios-creados", async (req, res) => {
 
     const [rows] = await pool.query(
       `
-      SELECT mes, nombre
-      FROM estudiante_servicio e JOIN servicios s ON e.servicio_id=s.id
-      WHERE estudiante_id = ?
-        AND anio = ?
-        AND estado!="CANCELADO"
-      ORDER BY mes ASC
+      SELECT 
+        e.mes,
+        e.servicio_id,
+        s.nombre
+      FROM estudiante_servicio e
+      JOIN servicios s ON e.servicio_id = s.id
+      WHERE e.estudiante_id = ?
+        AND e.anio = ?
+        AND e.estado != "CANCELADO"
+      ORDER BY e.mes ASC
       `,
       [estudiante_id, year]
     );
 
     const serviciosProcesados = rows.map(r => ({
       mes: Number(r.mes),
+      servicio_id: r.servicio_id,
       nombre_servicio: r.nombre
     }));
 
@@ -106,7 +111,7 @@ router.get("/servicios-creados", async (req, res) => {
 
   } catch (error) {
     console.error(error);
-    apiError(res, "BUSINESS_RULE", "Error obteniendo meses pagados");
+    apiError(res, "BUSINESS_RULE", "Error obteniendo servicios creados");
   }
 });
 
