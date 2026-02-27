@@ -130,4 +130,40 @@ export class StudentService {
             {params}
         );
     }
+    // ===============================
+    // GET /cursos extras
+    // ===============================
+    getCuotasCreadas(
+        estudianteId: number,
+        year: number
+    ): Observable<any> {
+
+        const params = new HttpParams()
+        .set('estudiante_id', estudianteId.toString())
+        .set('year', year.toString());
+
+        return this.http.get<any>(
+        `${this.baseUrl}/cuotas-creadas`,
+        { params }
+        );
+    }
+
+    /* ===========================
+        SERVICIOS CREADOS
+    ============================ */
+
+    getServiciosCreados(
+        estudianteId: number,
+        year: number
+    ): Observable<any> {
+
+        const params = new HttpParams()
+        .set('estudiante_id', estudianteId.toString())
+        .set('year', year.toString());
+
+        return this.http.get<any>(
+        `${this.baseUrl}/servicios-creados`,
+        { params }
+        );
+    }
 }

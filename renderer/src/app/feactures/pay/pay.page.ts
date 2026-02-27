@@ -9,11 +9,12 @@ import { ActivatedRoute } from '@angular/router';
 import { TutorApiService } from '../../core/services/tutor.service';
 import { CategoryService, CategoryDTO, CategoryType } from '../../core/services/categoria.service';
 import { PaymentService } from '../../core/services/pay.service';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, forkJoin } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { ReciboService } from '../../core/services/recibo.service';
+import { StudentService } from '../../core/services/estudiantes.service';
 
 type Parallel = 'A' | 'B' | 'C';
 type Grade = 'Kinder' | 'Pre-Kinder' | '1er' | '2do' | '3ro' | '4to' | '5to' | '6to';
@@ -101,6 +102,7 @@ export class PayPage implements OnInit{
     private paymentApi: PaymentService,
     private auth: AuthService,
     private reciboNum: ReciboService,
+    private estudianteService: StudentService
   ) {}
 
   isLoading = false;
@@ -123,7 +125,6 @@ export class PayPage implements OnInit{
       if (!id) return;
       this.idTutor = id;
       this.fetchPayView(id);
-        this.fetchCategorias();
     });
   }
   private get currentUserName(): string {
@@ -234,13 +235,6 @@ export class PayPage implements OnInit{
       },
     });
   }
-    
-  private normalizePending(v: number | string): number {
-    const n = this.money(v);
-    if (!Number.isFinite(n)) return 0;
-    return this.round2(Math.max(0, Math.abs(n)));
-  }
-
   private money(v: any): number {
     if (v == null) return 0;
     if (typeof v === 'number') return this.round2(v);
@@ -312,9 +306,6 @@ export class PayPage implements OnInit{
   }
 
   // ------------------ Pagination per child ------------------
-  //private ensureChildPage(childId: number) {
-    //if (!this.childPage[childId]) this.childPage[childId] = 1;
- // }
 
   childTotalPages(childId: number): number {
     const total = this.paymentsByChild[childId]?.length ?? 0;
@@ -858,10 +849,47 @@ export class PayPage implements OnInit{
 
 
   categorias: string[] = [];
-  
-  private fetchCategorias() {
-    this.categoryapi.getCategorias().subscribe(res => {
-      this.categorias = res.map(c => c.name);
+  mesesBloqueadosPorCategoria: Record<string, number[]> = {};
+
+  fetchCategorias(estudianteId: number) {
+    const year = new Date().getFullYear();
+    this.categorias = [];
+    this.mesesBloqueadosPorCategoria = {};
+    forkJoin({
+      cuotas: this.estudianteService.getCuotasCreadas(estudianteId, year),
+      servicios: this.estudianteService.getServiciosCreados(estudianteId, year)
+    }).subscribe({
+      next: ({ cuotas, servicios }) => {
+        const mapa: Record<string, number[]> = {};
+        const mesesCuotas: number[] = Array.isArray(cuotas?.meses_creados)
+          ? cuotas.meses_creados.map((m: any) => Number(m))
+          : [];
+
+        mapa['Mensualidad'] = mesesCuotas;
+
+        const serviciosArray = Array.isArray(servicios?.servicios_creados)
+          ? servicios.servicios_creados
+          : [];
+
+        serviciosArray.forEach((s: any) => {
+
+          const nombre = s?.nombre_servicio;
+          const mesNumero = Number(s?.mes);
+
+          if (!nombre || !Number.isFinite(mesNumero)) return;
+
+          if (!mapa[nombre]) {
+            mapa[nombre] = [];
+          }
+
+          mapa[nombre].push(mesNumero);
+        });
+
+        this.mesesBloqueadosPorCategoria = mapa;
+        this.categorias = Object.keys(mapa);
+        console.log(this.categorias, this.mesesBloqueadosPorCategoria);
+      },
+      error: err => console.error(err)
     });
   }
   showModalAbono = false; 
@@ -900,6 +928,7 @@ export class PayPage implements OnInit{
       normalize(payload.categoria) === "mensualidad"
         ? "MENSUALIDAD"
         : "SERVICIO";
+    console.log(tipo);
     try {
       const descuentoPorMes = Math.round(
         (payload.descuento / payload.meses.length) * 100
@@ -919,7 +948,7 @@ export class PayPage implements OnInit{
           tipo: tipo,
           nombre_servicio: tipo === "SERVICIO" ? payload.categoria : null
         }));
-
+        console.log(mensualidad);
         if (payload.destino === 'PAGAR_AHORA') {
           await firstValueFrom(this.paymentApi.registerMovement(
             mensualidad!.id,

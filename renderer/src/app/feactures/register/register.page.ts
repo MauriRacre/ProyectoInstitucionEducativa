@@ -1,136 +1,73 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
-import { InscriptionService } from '../../core/services/inscription.service';
 
 interface Tutor {
-  id: number;
-  name: string;
-  phone: string;
-  email: string;
+    id: number;
+    name: string;
+    phone: string;
+    email: string;
 }
 
 interface Child {
-  id: number;
-  name: string;
-  grade: string;
-  parallel: string;
-  courses: any[];
+    id: number;
+    name: string;
+    grade: string;
+    parallel: string;
+    courses: string[];
 }
 
 @Component({
-  selector: 'app-course-register',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
-  templateUrl: './register.page.html'
+    selector: 'app-course-register',
+    imports: [CommonModule, FormsModule],
+    templateUrl: './register.page.html'
 })
 export class RegisterPage implements OnInit {
 
-  tutor!: Tutor;
-  children: Child[] = [];
+    tutor: Tutor = {
+        id: 1,
+        name: 'Juan Pérez',
+        phone: '70000000',
+        email: 'juan@email.com'
+    };
 
-  private tutorId!: number;
-  private year = new Date().getFullYear();
+    children: Child[] = [];
 
-  loading = false;
-
-  constructor(
-    private route: ActivatedRoute,
-    private inscriptionService: InscriptionService
-  ) {}
-
-  // ================================
-  // INIT
-  // ================================
-  ngOnInit(): void {
-
-    this.route.paramMap.subscribe(params => {
-
-      const id = Number(params.get('id'));
-      if (!id) {
-        console.error('TutorId inválido');
-        return;
-      }
-
-      this.tutorId = id;
-      this.loadData();
-    });
-  }
-
-  // ================================
-  // LOAD DATA
-  // ================================
-  private loadData(): void {
-
-    this.loading = true;
-
-    this.inscriptionService
-      .getInscriptionView(this.tutorId, this.year, true)
-      .subscribe({
-        next: (res) => {
-
-          this.tutor = res.tutor;
-
-          this.children = res.children.map(child => ({
-            id: child.id,
-            name: child.name,
-            grade: child.grade,
-            parallel: child.parallel,
-            courses: res.paymentsByChild[child.id] || []
-          }));
-
-          this.loading = false;
+    ngOnInit(): void {
+        this.children = [
+        {
+            id: 1,
+            name: 'Carlos Pérez',
+            grade: '4to',
+            parallel: 'A',
+            courses: ['Inglés', 'Robótica']
         },
-        error: (err) => {
-          console.error(err);
-          this.loading = false;
+        {
+            id: 2,
+            name: 'Ana Pérez',
+            grade: '2do',
+            parallel: 'B',
+            courses: []
         }
-      });
-  }
+        ];
+    }
 
-  // ================================
-  // INSCRIBIR
-  // ================================
-  addCourse(childId: number): void {
+    addCourse(childId: number) {
 
-    const servicioId = Number(prompt('ID del servicio:'));
-    if (!servicioId) return;
+        const courseName = prompt('Nombre del curso:');
+        if (!courseName) return;
 
-    const base = Number(prompt('Monto base:'));
-    if (!base || base <= 0) return;
+        const child = this.children.find(c => c.id === childId);
+        if (!child) return;
 
-    const month = new Date().getMonth() + 1;
+        child.courses.push(courseName);
+    }
 
-    this.inscriptionService.enroll({
-      estudiante_id: childId,
-      servicio_id: servicioId,
-      period: { year: this.year, month },
-      base_amount: base
-    }).subscribe({
-      next: () => {
-        alert('Inscripción exitosa');
-        this.loadData(); 
-      },
-      error: err => console.error(err)
-    });
-  }
+    deleteCourse(childId: number, courseName: string) {
 
-  // ================================
-  // DESINSCRIBIR
-  // ================================
-  deleteCourse(registroId: number): void {
+        const child = this.children.find(c => c.id === childId);
+        if (!child) return;
 
-    if (!confirm('¿Desinscribir?')) return;
-
-    this.inscriptionService
-      .unsubscribe(registroId)
-      .subscribe({
-        next: () => {
-          alert('Desinscrito correctamente');
-          this.loadData(); 
-        },
-        error: err => console.error(err)
-      });
-  }
+        child.courses = child.courses.filter(c => c !== courseName);
+    }
 }
