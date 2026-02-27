@@ -37,7 +37,7 @@ router.get('/tutor/:tutorId', async (req, res) => {
     res.status(500).json({ ok: false });
   }
 });
-
+//cuotas creadas
 router.get("/cuotas-creadas", async (req, res) => {
   try {
     const { estudiante_id, year } = req.query;
@@ -71,6 +71,8 @@ router.get("/cuotas-creadas", async (req, res) => {
   }
 });
 
+
+//servicios creados
 router.get("/servicios-creados", async (req, res) => {
   try {
     const { estudiante_id, year } = req.query;
@@ -81,8 +83,8 @@ router.get("/servicios-creados", async (req, res) => {
 
     const [rows] = await pool.query(
       `
-      SELECT mes
-      FROM estudiante_servicio
+      SELECT mes, nombre
+      FROM estudiante_servicio e JOIN servicios s ON e.servicio_id=s.id
       WHERE estudiante_id = ?
         AND anio = ?
         AND estado!="CANCELADO"
@@ -91,12 +93,15 @@ router.get("/servicios-creados", async (req, res) => {
       [estudiante_id, year]
     );
 
-    const mesesPagados = rows.map(r => Number(r.mes));
+    const serviciosProcesados = rows.map(r => ({
+      mes: Number(r.mes),
+      nombre_servicio: r.nombre
+    }));
 
     res.json({
       estudiante_id: Number(estudiante_id),
       year: Number(year),
-      servicios_creados: mesesPagados
+      servicios_creados: serviciosProcesados
     });
 
   } catch (error) {
