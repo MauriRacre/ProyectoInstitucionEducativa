@@ -282,8 +282,8 @@ router.get("/:tutorId/pay-view", async (req, res) => {
         if (includeHistory === "true") {
           const [rows] = await pool.query(
             `SELECT id, fecha, monto, descuento, nota, responsable
-             FROM pagos
-             WHERE referencia_id= ?`,
+              FROM pagos
+              WHERE referencia_id= ?`,
             [c.id]
           );
 

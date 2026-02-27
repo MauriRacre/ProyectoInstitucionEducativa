@@ -60,13 +60,13 @@ router.get("/:id", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const { nombre, username, email } = req.body;
+    const { name, username, email } = req.body;
     const ping = await generateUniquePing(pool);
 
     const [result] = await pool.query(
       `INSERT INTO usuarios (nombre, username, email, rol, ping)
        VALUES (?, ?, ?,'USER', ?)`,
-      [nombre, username, email, ping]
+      [name, username, email, ping]
     );
 
     // Enviar correo
@@ -74,7 +74,7 @@ router.post("/", async (req, res) => {
       to: email,
       subject: "Acceso al Sistema",
       html: `
-        <h3>Bienvenido ${nombre}</h3>
+        <h3>Bienvenido ${name}</h3>
         <p>Su acceso ha sido creado.</p>
         <p><strong>Usuario:</strong> ${username}</p>
         <p><strong>PIN:</strong> ${ping}</p>

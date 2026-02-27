@@ -33,7 +33,7 @@ export class UserService{
     // CREATE
     // ========================================
     create(payload: {
-        nombre: string;
+        name: string;
         username: string;
         email: string
     }): Observable<any> {
@@ -47,9 +47,9 @@ export class UserService{
     // UPDATE
     // ========================================
     update(id: number, payload: {
-        nombre: string;
+        name: string;
         username: string;
-        rol: string;
+        rol: 'USER';
         email: string
     }): Observable<any> {
         return this.http.put<any>(

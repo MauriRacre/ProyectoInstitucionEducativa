@@ -47,6 +47,7 @@ export class PaymentService {
   // ===============================
     registerMovement(
         conceptId: number,
+        tipo: string,
         dto: MovementDTO
     ): Observable<{
         movementId: number;
@@ -54,7 +55,7 @@ export class PaymentService {
         newPending: number;
     }> {
         return this.http.post<any>(
-        `${this.baseUrl}/api/payment-concepts/${conceptId}/movements`,
+        `${this.baseUrl}/api/payment-concepts/${tipo}/${conceptId}/movements`,
         dto
         );
     }
@@ -82,7 +83,7 @@ export class PaymentService {
     registerMultipleMovements(movements: any[]) {
         return from(movements).pipe(
             concatMap(m =>
-            this.registerMovement(m.conceptId, m.dto)
+            this.registerMovement(m.conceptId, m.tipo, m.dto)
             ),
             toArray()
         );

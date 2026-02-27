@@ -120,7 +120,7 @@ export class ModalUser implements OnChanges {
         }
 
         const payload = {
-            nombre: this.form.value.name.trim(),
+            name: this.form.value.name.trim(),
             username: this.form.value.username.trim(),
             email: this.form.value.email.trim(),
         };

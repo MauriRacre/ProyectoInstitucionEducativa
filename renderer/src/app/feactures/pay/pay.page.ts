@@ -481,8 +481,14 @@ export class PayPage implements OnInit{
       const paid = this.draftPay[id] ?? 0;
       const discount = this.draftDiscount[id] ?? 0;
 
+      const firstWord = payment.concept?.trim().split(' ')[0]?.toLowerCase();
+      const tipo = firstWord === 'mensualidad'
+        ? 'MENSUALIDAD'
+        : 'SERVICIO';
+
       movements.push({
         conceptId: id,
+        tipo,
         dto: {
           paid,
           discount,
@@ -519,20 +525,20 @@ export class PayPage implements OnInit{
     if (!ok) return;
 
     this.paymentApi.registerMultipleMovements(movements)
-    .subscribe({
-      next: () => {
-        this.facturaPdf(recibos);
-        this.toast.success('Pago registrado correctamente');
-        this.selectedIds.clear();
-        this.draftDiscount = {};
-        this.draftPay = {};
-        this.fetchPayView(this.idTutor); 
-      },
-      error: err => {
-        console.error(err);
-        this.toast.error('Error registrando pago');
-      }
-    });
+      .subscribe({
+        next: () => {
+          this.facturaPdf(recibos);
+          this.toast.success('Pago registrado correctamente');
+          this.selectedIds.clear();
+          this.draftDiscount = {};
+          this.draftPay = {};
+          this.fetchPayView(this.idTutor); 
+        },
+        error: err => {
+          console.error(err);
+          this.toast.error('Error registrando pago');
+        }
+      });
   }
 
   async revertMovement(movementId: number) {
@@ -883,14 +889,23 @@ export class PayPage implements OnInit{
       Mayo: 5, Junio: 6, Julio: 7, Agosto: 8,
       Septiembre: 9, Octubre: 10, Noviembre: 11, Diciembre: 12
     };
+    const normalize = (text: string) =>
+      text
+        ?.normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
 
+    const tipo =
+      normalize(payload.categoria) === "mensualidad"
+        ? "MENSUALIDAD"
+        : "SERVICIO";
     try {
       const descuentoPorMes = Math.round(
         (payload.descuento / payload.meses.length) * 100
       ) / 100;
       
       for (const mes of payload.meses) {
-        const esMensualidad = payload.categoria === "Mensualidad";
 
         const mensualidad = await firstValueFrom(this.paymentApi.createMensualidad({
           estudiante_id: payload.estudiante,
@@ -901,13 +916,14 @@ export class PayPage implements OnInit{
           base_amount: payload.montoUnitario,
           extra_amount: 0,
           discount_amount: descuentoPorMes,
-          tipo: esMensualidad ? "MENSUALIDAD" : "SERVICIO",
-          nombre_servicio: esMensualidad ? null : payload.categoria
+          tipo: tipo,
+          nombre_servicio: tipo === "SERVICIO" ? payload.categoria : null
         }));
-        if (payload.destino === 'PAGAR_AHORA') {
 
+        if (payload.destino === 'PAGAR_AHORA') {
           await firstValueFrom(this.paymentApi.registerMovement(
             mensualidad!.id,
+            tipo,
             {
               paid: payload.montoUnitario - descuentoPorMes,
               discount: 0,
