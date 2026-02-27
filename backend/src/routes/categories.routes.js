@@ -65,7 +65,7 @@ router.get("/:id", async (req, res) => {
     const id = Number(req.params.id);
 
     const [rows] = await pool.query(
-      "SELECT * FROM categorias WHERE id = ?",
+      "SELECT * FROM servicios WHERE id = ?",
       [id]
     );
 
@@ -87,7 +87,7 @@ router.get("/:id", async (req, res) => {
 // ======================================================
 router.post("/", async (req, res) => {
   try {
-    const { name, type, active } = req.body;
+    const { name, type } = req.body;
 
     if (!name) {
       return apiError(res, "VALIDATION_ERROR", "Nombre requerido");
@@ -99,10 +99,10 @@ router.post("/", async (req, res) => {
 
     const [result] = await pool.query(
       `
-      INSERT INTO categorias (name, type, active)
-      VALUES (?, ?, ?)
+      INSERT INTO servicios (nombre, descripcion, activo)
+      VALUES (?, ?, 1)
       `,
-      [name, type, active ?? true]
+      [name, type]
     );
 
     res.json({ ok: true, id: result.insertId });
@@ -132,11 +132,11 @@ router.put("/:id", async (req, res) => {
 
     const [result] = await pool.query(
       `
-      UPDATE categorias
-      SET name = ?, type = ?, active = ?
+      UPDATE servicios
+      SET nombre = ?, descripcion = ?, activo=?
       WHERE id = ?
       `,
-      [name, type, active ?? true, id]
+      [name, type, active , id]
     );
 
     if (result.affectedRows === 0) {
@@ -160,7 +160,7 @@ router.delete("/:id", async (req, res) => {
     const id = Number(req.params.id);
 
     const [result] = await pool.query(
-      "DELETE FROM categorias WHERE id = ?",
+      "DELETE FROM servicio WHERE id = ?",
       [id]
     );
 
