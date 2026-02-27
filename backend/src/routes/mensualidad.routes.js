@@ -13,7 +13,7 @@ router.post('/', async (req, res) => {
       base_amount = 490, 
       extra_amount = 0, 
       discount_amount = 0,
-      tipo = "MENSUALIDAD",
+      tipo,
       nombre_servicio = null
     } = req.body;
 

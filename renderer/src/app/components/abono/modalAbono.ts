@@ -13,6 +13,8 @@ export class ModalAbono {
   @Input() open = false;
   @Input() estudiantes:{ id: number; name: string }[] = [];
   @Input() categorias : string[] = [];
+  @Input() mesesBloqueadosPorCategoria: Record<string, number[]> = {};
+  @Output() estudianteChange = new EventEmitter<number>();
   @Output() closed = new EventEmitter<void>();
   @Output() saved = new EventEmitter<any>();
 
@@ -85,14 +87,41 @@ export class ModalAbono {
     return encontrado?.name ?? '';
   }
 
-
+  get mesesBloqueadosActual(): number[] {
+    const categoria = this.form.get('categoria')?.value;
+    return this.mesesBloqueadosPorCategoria[categoria] || [];
+  }
   // =====================
   // Meses (chips)
   // =====================
   isMesSelected(mes: string): boolean {
     return this.selectedMeses.includes(mes);
   }
-
+  private mesToNumber: Record<string, number> = {
+    Enero: 1,
+    Febrero: 2,
+    Marzo: 3,
+    Abril: 4,
+    Mayo: 5,
+    Junio: 6,
+    Julio: 7,
+    Agosto: 8,
+    Septiembre: 9,
+    Octubre: 10,
+    Noviembre: 11,
+    Diciembre: 12
+  };
+  isMesBloqueado(mes: string): boolean {
+    const numero = this.mesToNumber[mes];
+    return this.mesesBloqueadosActual.includes(numero);
+  }
+  onEstudianteChange(): void {
+    const value = this.form.get('estudiante')?.value;
+    const id = Number(value);
+    if (Number.isFinite(id)) {
+      this.estudianteChange.emit(id);
+    }
+  }
   toggleMes(mes: string): void {
     const current = new Set(this.selectedMeses);
     if (current.has(mes)) current.delete(mes);

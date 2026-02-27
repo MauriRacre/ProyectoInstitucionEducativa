@@ -408,6 +408,8 @@
   [open]="showModalAbono"
   [estudiantes]="studentOptions"
   [categorias]="categorias"
+  [mesesBloqueadosPorCategoria]="mesesBloqueadosPorCategoria"
+  (estudianteChange)="fetchCategorias($event)"
   (closed)="closeModalAbono()"
   (saved)="onSaved($event)"
 ></app-modal-abono>
