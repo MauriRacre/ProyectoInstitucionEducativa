@@ -215,6 +215,54 @@ router.get("/:studentId/payment-concepts", async (req, res) => {
   }
 });
 
+router.get("/servicios/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [[student]] = await pool.query(
+      `
+      SELECT 
+        e.id,
+        e.nombre,
+        e.grado,
+        e.paralelo
+      FROM estudiantes e
+      WHERE e.id = ?
+      `,
+      [id]
+    );
+
+    if (!student) {
+      return apiError(res, "NOT_FOUND", "Estudiante no encontrado");
+    }
+
+    const [cursos] = await pool.query(
+      `
+      SELECT 
+        es.id AS inscripcion_id,
+        s.id AS servicio_id,
+        s.nombre,
+        es.estado
+      FROM estudiante_servicio es
+      JOIN servicios s ON s.id = es.servicio_id
+      WHERE es.estudiante_id = ?
+        AND es.estado != 'CANCELADO'
+      ORDER BY s.nombre ASC
+      `,
+      [id]
+    );
+
+    res.json({
+      estudiante: student,
+      cursos_extra: cursos
+    });
+
+  } catch (error) {
+    console.error(error);
+    apiError(res, "BUSINESS_RULE", "Error obteniendo cursos del estudiante");
+  }
+});
+
 router.post('/', async (req, res) => {
   try {
     const { nombre, grado, paralelo, tutor_id } = req.body;
