@@ -232,10 +232,13 @@ router.get("/:tutorId/pay-view", async (req, res) => {
       return apiError(res, "VALIDATION_ERROR", "Año requerido");
     }
 
+    /* =========================
+        Tutor
+    ==========================*/
     const [[tutor]] = await pool.query(
       `SELECT id, nombre, telefono, correo AS email
-        FROM tutores
-        WHERE id = ?`,
+       FROM tutores
+       WHERE id = ?`,
       [tutorId]
     );
 
@@ -243,6 +246,9 @@ router.get("/:tutorId/pay-view", async (req, res) => {
       return apiError(res, "NOT_FOUND", "Tutor no encontrado");
     }
 
+    /* =========================
+        Hijos
+    ==========================*/
     const [children] = await pool.query(
       `SELECT id, nombre, grado, paralelo
        FROM estudiantes
@@ -254,44 +260,117 @@ router.get("/:tutorId/pay-view", async (req, res) => {
 
     for (const child of children) {
 
-      const [concepts] = await pool.query(
-        `SELECT id, mes, anio, total AS monto, tipo, nombre_servicio
+      /* =========================
+          Mensualidades
+      ==========================*/
+      const [mensualidades] = await pool.query(
+        `SELECT id, mes, anio,total AS monto
          FROM mensualidades
          WHERE estudiante_id = ? AND anio = ?`,
         [child.id, year]
       );
 
+      /* =========================
+         Servicios extra
+      ==========================*/
+      const [servicios] = await pool.query(
+        `SELECT 
+            es.id,
+            es.mes,
+            es.anio,
+            es.total AS monto,
+            es.servicio_id,
+            s.nombre AS nombre_servicio
+         FROM estudiante_servicio es
+         JOIN servicios s ON s.id = es.servicio_id
+         WHERE es.estudiante_id = ?
+           AND es.anio = ?
+           AND es.estado != 'CANCELADO'`,
+        [child.id, year]
+      );
+
       const childConcepts = [];
 
-      for (const c of concepts) {
+      /* =========================
+         Procesar mensualidades
+      ==========================*/
+      for (const m of mensualidades) {
 
         const [[sum]] = await pool.query(
           `SELECT COALESCE(SUM(monto + descuento),0) AS total
            FROM pagos
-           WHERE referencia_id = ?`,
-          [c.id]
+           WHERE referencia_id = ?
+           AND tipo = 'MENSUALIDAD'`,
+          [m.id]
         );
 
-        const pending = c.monto - sum.total;
-        const conceptoLabel =
-          c.tipo === "MENSUALIDAD"
-            ? "Mensualidad"
-            : c.nombre_servicio;
+        const pending = m.monto - sum.total;
         let history = [];
 
         if (includeHistory === "true") {
           const [rows] = await pool.query(
             `SELECT id, fecha, monto, descuento, nota, responsable
-              FROM pagos
-              WHERE referencia_id= ?`,
-            [c.id]
+             FROM pagos
+             WHERE referencia_id = ?
+             AND tipo = 'MENSUALIDAD'`,
+            [m.id]
           );
 
           history = rows.map(r => ({
             id: r.id,
             dateISO: r.fecha,
             type: "PAYMENT",
-            conceptLabel: `${conceptoLabel} ${c.mes}/${c.anio}`,
+            conceptLabel: `Mensualidad ${m.mes}/${m.anio}`,
+            paid: r.total,
+            discount: r.descuento,
+            appliedTotal: r.total + r.descuento,
+            note: r.nota,
+            staff: r.responsable,
+            movementId: r.id,
+            reversed: false
+          }));
+        }
+
+        childConcepts.push({
+          id: m.id,
+          studentId: child.id,
+          categoryId: 1,
+          categoryName: "MENSUALIDAD",
+          concept: `Mensualidad ${m.mes}/${m.anio}`,
+          period: { year: m.anio, month: m.mes },
+          amountTotal: m.monto,
+          pending,
+          history
+        });
+      }
+
+      for (const s of servicios) {
+
+        const [[sum]] = await pool.query(
+          `SELECT COALESCE(SUM(monto + descuento),0) AS total
+           FROM pagos
+           WHERE referencia_id = ?
+           AND tipo = 'SERVICIO'`,
+          [s.id]
+        );
+
+        const pending = s.monto - sum.total;
+        let history = [];
+
+        if (includeHistory === "true") {
+          const [rows] = await pool.query(
+            `SELECT id, fecha, monto, descuento, nota, responsable
+             FROM pagos
+             WHERE referencia_id = ?
+             AND tipo = 'SERVICIO'`,
+            [s.id]
+          );
+
+          history = rows.map(r => ({
+            id: r.id,
+            dateISO: r.fecha,
+            type: "PAYMENT",
+            conceptLabel: `Servicio ${s.nombre_servicio} ${s.mes}/${s.anio}`,
             paid: r.monto,
             discount: r.descuento,
             appliedTotal: r.monto + r.descuento,
@@ -301,14 +380,16 @@ router.get("/:tutorId/pay-view", async (req, res) => {
             reversed: false
           }));
         }
-        
+
         childConcepts.push({
-          id: c.id,
+          id: s.id,
           studentId: child.id,
-          categoryId: c.tipo,
-          concept: `${conceptoLabel} ${c.mes}/${c.anio}`,
-          period: { year: c.anio, month: c.mes },
-          amountTotal: c.monto,
+          servicio_id: s.servicio_id, 
+          categoryId: 2,
+          categoryName: "SERVICIO",
+          concept: `Servicio ${s.nombre_servicio} ${s.mes}/${s.anio}`,
+          period: { year: s.anio, month: s.mes },
+          amountTotal: s.monto,
           pending,
           history
         });
@@ -338,6 +419,7 @@ router.get("/:tutorId/pay-view", async (req, res) => {
     apiError(res, "BUSINESS_RULE", "Error construyendo PayView");
   }
 });
+
 router.get("/:id/full", async (req, res) => {
   try {
     const tutorId = req.params.id;

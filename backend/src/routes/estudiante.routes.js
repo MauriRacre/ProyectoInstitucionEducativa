@@ -170,7 +170,7 @@ router.get("/:studentId/payment-concepts", async (req, res) => {
       const [[sum]] = await pool.query(
         `SELECT COALESCE(SUM(monto + descuento),0) AS total
          FROM pagos
-         WHERE referencia_id = ?`,
+         WHERE referencia_id = ? and reversed=0`,
         [c.id]
       );
 
@@ -181,7 +181,7 @@ router.get("/:studentId/payment-concepts", async (req, res) => {
         const [rows] = await pool.query(
           `SELECT id, fecha, monto, descuento, nota, responsable
            FROM pagos
-           WHERE referencia_id = ?`,
+           WHERE referencia_id = ? and nota="Reversión manual"`,
           [c.id]
         );
 
