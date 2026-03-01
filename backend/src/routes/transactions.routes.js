@@ -3,7 +3,6 @@ const router = express.Router();
 const pool = require("../config/db");
 const { apiError } = require("../utils/apiError");
 
-
 router.get("/", async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -11,6 +10,9 @@ router.get("/", async (req, res) => {
     const offset = (page - 1) * pageSize;
 
     const baseQuery = `
+      /* =========================
+         PAGOS MENSUALIDADES
+      ==========================*/
       SELECT 
         p.id,
         DATE(p.fecha) AS dateISO,
@@ -29,12 +31,47 @@ router.get("/", async (req, res) => {
         p.nota AS note,
         (p.monto + p.descuento) AS amount
       FROM pagos p
-      JOIN mensualidades m ON m.id = p.referencia_id
+      JOIN mensualidades m 
+          ON m.id = p.referencia_id
+          AND p.tipo = 'MENSUALIDAD'
       JOIN estudiantes e ON e.id = m.estudiante_id
       JOIN tutores t ON t.id = e.tutor_id
 
       UNION ALL
 
+      /* =========================
+         PAGOS SERVICIOS
+      ==========================*/
+      SELECT 
+        p.id,
+        DATE(p.fecha) AS dateISO,
+        TIME(p.fecha) AS time,
+        CASE 
+          WHEN p.reversed = 1 OR p.monto < 0 THEN 'REVERSAL'
+          WHEN p.monto = 0 AND p.descuento > 0 THEN 'DISCOUNT'
+          ELSE 'PAYMENT'
+        END AS type,
+        p.responsable AS staff,
+        t.nombre AS tutor,
+        e.nombre AS student,
+        e.grado AS grade,
+        e.paralelo AS parallel,
+        CONCAT('Servicio ', s.nombre, ' ', es.mes, ' ', es.anio) AS concept,
+        p.nota AS note,
+        (p.monto + p.descuento) AS amount
+      FROM pagos p
+      JOIN estudiante_servicio es 
+          ON es.id = p.referencia_id
+          AND p.tipo = 'SERVICIO'
+      JOIN servicios s ON s.id = es.servicio_id
+      JOIN estudiantes e ON e.id = es.estudiante_id
+      JOIN tutores t ON t.id = e.tutor_id
+
+      UNION ALL
+
+      /* =========================
+         GASTOS
+      ==========================*/
       SELECT
         mov.id,
         DATE(mov.fecha) AS dateISO,
@@ -49,15 +86,19 @@ router.get("/", async (req, res) => {
         NULL AS note,
         mov.monto AS amount
       FROM movimientos mov
-      WHERE tipo="GASTO"
+      WHERE mov.tipo = "GASTO"
     `;
 
-    // TOTAL
+    /* =========================
+       TOTAL
+    ==========================*/
     const [[{ total }]] = await pool.query(
       `SELECT COUNT(*) as total FROM (${baseQuery}) as combined`
     );
 
-    // DATA PAGINADA
+    /* =========================
+       DATA PAGINADA
+    ==========================*/
     const [rows] = await pool.query(
       `
       SELECT * FROM (${baseQuery}) as combined

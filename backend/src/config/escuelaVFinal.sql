@@ -333,6 +333,7 @@ ALTER TABLE `estudiantes`
 -- Filtros para la tabla `estudiante_servicio`
 --
 ALTER TABLE `estudiante_servicio`
+  ADD UNIQUE KEY `unique_servicio_mes` (`estudiante_id`,`servicio_id`,`mes`,`anio`),
   ADD CONSTRAINT `estudiante_servicio_ibfk_1` FOREIGN KEY (`estudiante_id`) REFERENCES `estudiantes` (`id`),
   ADD CONSTRAINT `estudiante_servicio_ibfk_2` FOREIGN KEY (`servicio_id`) REFERENCES `servicios` (`id`);
 
