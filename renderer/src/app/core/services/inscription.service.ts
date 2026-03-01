@@ -69,7 +69,7 @@ export class InscriptionService {
     enroll(payload: {
         estudiante_id: number;
         servicio_id: number;
-        period: { year: number; month?: number };
+        period: { month?: number; year: number };
         base_amount: number;
         extra_amount?: number;
         discount_amount?: number;

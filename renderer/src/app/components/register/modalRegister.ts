@@ -4,7 +4,7 @@ import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators, Abs
 import { ModalService } from '../../core/swal/swal.service';
 import { AuthService } from '../../core/services/auth.service';
 
-type Grade = 'Kinder' | 'Pre-Kinder' | '1er' | '2do' | '3ro' | '4to' | '5to' | '6to' 
+type Grade = 'Sala Cuna' | 'Maternal' | 'Preparatorio'| 'Taller Inicial' |'Kinder' | 'Pre-Kinder' | '1er' | '2do' | '3ro' | '4to' | '5to' | '6to' ;
 type Parallel = 'A' | 'B' | 'C';
 
 export interface Parent{
@@ -39,7 +39,7 @@ export class ModalRegister {
   @Output() close = new EventEmitter<void>();
   @Output() submitForm = new EventEmitter<{ mode: Mode; payload: Parent}>();
 
-  grades: Grade[] = ['Pre-Kinder', 'Kinder','1er', '2do', '3ro', '4to', '5to'];
+  grades: Grade[] = ['Sala Cuna','Maternal', 'Preparatorio', 'Taller Inicial' ,'Pre-Kinder', 'Kinder','1er', '2do', '3ro', '4to', '5to', '6to'];
   parallels: Parallel[] = ['A', 'B', 'C'];
   form!: FormGroup;
 
@@ -76,8 +76,8 @@ export class ModalRegister {
   private createStudentGroup(seed?: Partial<Parent['students'][number]>): FormGroup {
     return this.fb.group({
       id:[seed?.id ?? null],
-      name: [seed?.name ?? '', [Validators.required, Validators.minLength(5), Validators.maxLength(80)]],
-      grade: [((seed?.grade ?? '1er') as Grade), [Validators.required]],
+      name: [seed?.name ?? '', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
+      grade: [((seed?.grade ?? 'Sala Cuna') as Grade), [Validators.required]],
       parallel: [((seed?.parallel ?? 'A') as Parallel), [Validators.required]],
     });
   }
@@ -103,7 +103,7 @@ export class ModalRegister {
     });
 
     this.clearStudents();
-    const arr = (v.students ?? []).length ? v.students : [{ name: '', grade: '1er', parallel: 'A' } as any];
+    const arr = (v.students ?? []).length ? v.students : [{ name: '', grade: 'Sala Cuna', parallel: 'A' } as any];
     for (const s of arr) this.students.push(this.createStudentGroup(s));
     this.form.markAsPristine();
     this.form.markAsUntouched();

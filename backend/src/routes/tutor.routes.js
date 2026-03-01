@@ -473,7 +473,6 @@ router.get("/:id/full", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const { parent, students } = req.body;
-
     if (!parent?.name || !parent?.phone) {
       return apiError(res, "VALIDATION_ERROR", "Nombre y teléfono son requeridos");
     }

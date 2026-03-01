@@ -85,7 +85,7 @@ export class TutorApiService {
     }
 
     create(payload: UpsertTutorPayload) {
-        return this.http.post<{ ok: true; id: number }>(`${this.baseUrl}${this.resource}`, payload);
+        return this.http.post<any>(`${this.baseUrl}${this.resource}`, payload);
     }
 
     update(tutorId: number, payload: UpsertTutorPayload) {

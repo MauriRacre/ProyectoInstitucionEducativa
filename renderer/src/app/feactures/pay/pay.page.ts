@@ -681,7 +681,7 @@ export class PayPage implements OnInit{
   const letras = convertir(enteros);
 
   return `${letras} ${centavos.toString().padStart(2,'0')}/100`;
-}
+  }
   async facturaPdf(
     movimientos: {
       childId: number,
@@ -695,7 +695,11 @@ export class PayPage implements OnInit{
       return;
     }
 
-    const doc = new jsPDF('portrait');
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: [140,216]
+    });
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const logoBase64 = await this.loadImage('assets/images/logo.png');
@@ -712,61 +716,55 @@ export class PayPage implements OnInit{
       const totalRecibido = subtotal - mov.descuento;
       const reciboNumero = this.reciboNum.getNextReciboNumero();
 
-      let y = 20;
+      //let y = 20;
 
       // ================= HEADER =================
 
-      doc.addImage(logoBase64, 'PNG', 20, y, 40, 40);
+      doc.addImage(logoBase64, 'PNG', 15, 5, 25, 25);
 
       doc.setFont('helvetica','bold');
-      doc.setFontSize(14);
-      doc.text('UNIDAD EDUCATIVA BILINGÜE', pageWidth/2 + 20, y + 10, {align:'center'});
-      doc.text('MARAVILLAS DEL SABER', pageWidth/2 + 20, y + 17, {align:'center'});
+      doc.setFontSize(11);
+      doc.text('UNIDAD EDUCATIVA BILINGÜE MARAVILLAS DEL SABER', pageWidth/2, 15, {align:'center'});
 
-      doc.setFontSize(9);
+      doc.setFontSize(8);
       doc.setFont('helvetica','normal');
-      doc.text('Calle Soruco Nº 310', pageWidth/2 + 20, y + 25, {align:'center'});
-      doc.text('Cel. 74375897 - 70386170', pageWidth/2 + 20, y + 30, {align:'center'});
-      doc.text('Quillacollo, Cochabamba - Bolivia', pageWidth/2 + 20, y + 35, {align:'center'});
-
-      y += 50;
+      doc.text('Calle Soruco Nº 310 - Quillacollo, Cochabamba - Bolivia', pageWidth/2, 21, {align:'center'});
+      doc.text('Cel. 74375897 - 70386170', pageWidth/2, 26, {align:'center'});
 
       doc.setDrawColor(180);
-      doc.line(15, y, pageWidth - 20, y);
+      doc.line(15, 32, pageWidth - 10, 32);
 
-      y += 10;
+      let y = 42;
 
       // ================= BLOQUE DATOS =================
 
-      doc.setFontSize(10);
-      doc.setFont('helvetica','bold');
-      doc.text('N° de Recibo:', 15, y);
+      const tableStartY = 55;
+      const tableWidth = pageWidth * 0.70; 
+      const leftTableMargin = (pageWidth - tableWidth) / 2;
+      doc.setFontSize(9);
       doc.setFont('helvetica','normal');
-      doc.text(reciboNumero, 50, y);
 
-      doc.setFont('helvetica','bold');
-      doc.text('Fecha:', pageWidth - 60, y);
-      doc.setFont('helvetica','normal');
-      doc.text(new Date().toLocaleDateString('es-BO'), pageWidth - 35, y);
+      doc.text(
+        `Tutor: ${this.tutor.name}   |   Cel: ${this.tutor.phone}`,
+        pageWidth / 2,
+        tableStartY - 18,
+        { align: 'center' }
+      );
 
-      y += 10;
+      doc.text(
+        `Estudiante: ${child.name}   |   Curso: ${child.grade} ${child.parallel}`,
+        pageWidth / 2,
+        tableStartY - 12,
+        { align: 'center' }
+      );
 
-      doc.text(`Tutor: ${this.tutor.name}`, 15, y);
-      y += 6;
-      doc.text(`Celular: ${this.tutor.phone}`, 15, y);
-
-      y += 10;
-      doc.text(`Estudiante: ${child.name}`, 15, y);
-      y += 6;
-      doc.text(`Curso: ${child.grade} ${child.parallel}`, 15, y);
-
-      y += 8;
-      doc.text(`Forma de pago: Efectivo`, 15, y);
-      y += 6;
-      doc.text(`Recibido por: ${this.currentUserName}`, 15, y);
-
-      y += 10;
-
+      doc.text(
+        `Forma de pago: Efectivo   |   Recibido por: ${this.currentUserName}`,
+        pageWidth / 2,
+        tableStartY - 6,
+        { align: 'center' }
+      );
+      
       // ================= TABLA UNIFICADA =================
 
       const conceptosLength = mov.conceptos.length;
@@ -786,13 +784,15 @@ export class PayPage implements OnInit{
       ];
 
       autoTable(doc,{
-        startY: y,
+        startY: tableStartY,
+        margin: { left: leftTableMargin  },
+        tableWidth: tableWidth,
         head:[['Concepto','Monto']],
         body: body,
         theme:'grid',
         styles:{
-          fontSize:9,
-          cellPadding:2
+          fontSize:8,
+          cellPadding:1
         },
         headStyles:{
           fillColor:[58, 110, 165],
@@ -800,8 +800,8 @@ export class PayPage implements OnInit{
           halign:'center'
         },
         columnStyles:{
-          0:{ halign:'left' },
-          1:{ halign:'right' }
+          0:{ cellWidth: tableWidth * 0.65, halign:'left' },
+          1:{ cellWidth: tableWidth * 0.35, halign:'right' }
         },
         didParseCell: function (data) {
           const resumenStart = conceptosLength;
@@ -826,7 +826,7 @@ export class PayPage implements OnInit{
       doc.text(
         `Son: ${this.numeroALetras(totalRecibido)} Bolivianos.`,
         15,
-        y
+        pageHeight - 25
       );
 
       // ================= FIRMAS =================
@@ -834,12 +834,13 @@ export class PayPage implements OnInit{
       doc.setLineWidth(0.25);
       doc.setDrawColor(120);
 
-      doc.line(40,pageHeight-40,90,pageHeight-40);
-      doc.line(pageWidth-90,pageHeight-40,pageWidth-40,pageHeight-40);
+      
+    doc.line(50,pageHeight-15,100,pageHeight-15);
+    doc.line(pageWidth-100,pageHeight-15,pageWidth-50,pageHeight-15);
 
-      doc.setFontSize(9);
-      doc.text('RECIBÍ CONFORME',65,pageHeight-32,{align:'center'});
-      doc.text('ENTREGUÉ CONFORME',pageWidth-65,pageHeight-32,{align:'center'});
+    doc.setFontSize(8);
+    doc.text('RECIBÍ CONFORME',75,pageHeight-8,{align:'center'});
+    doc.text('ENTREGUÉ CONFORME',pageWidth-75,pageHeight-8,{align:'center'});
     }
 
     const pdfBlob = doc.output('blob');

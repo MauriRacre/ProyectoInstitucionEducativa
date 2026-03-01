@@ -199,11 +199,12 @@ export class RegisterPage implements OnInit {
         this.loadingEnroll = true;
 
         const year = new Date().getFullYear();
-
+        const month = new Date().getMonth() + 1;
+        
         this.incriptionService.enroll({
             estudiante_id: this.selectedChildId,
             servicio_id: this.selectedServicioId!,
-            period: { year },
+            period: { month: month, year: year },
             base_amount: this.baseAmount!,
             discount_amount: this.discountAmount ?? 0
         })
