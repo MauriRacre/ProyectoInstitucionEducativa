@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const { apiError } = require("../utils/apiError");
-
 router.get("/", async (req, res) => {
   try {
     const {
@@ -14,7 +13,6 @@ router.get("/", async (req, res) => {
 
     const offset = (Number(page) - 1) * Number(pageSize);
 
-    // total registros
     const [[{ total }]] = await pool.query(
       `SELECT COUNT(*) as total
        FROM tutores
@@ -22,7 +20,6 @@ router.get("/", async (req, res) => {
       [`%${q}%`]
     );
 
-    // lista base
     const [tutores] = await pool.query(
       `SELECT id, nombre, correo AS email, telefono
        FROM tutores
@@ -35,29 +32,63 @@ router.get("/", async (req, res) => {
 
     for (const t of tutores) {
 
-      // alumnos
       const [students] = await pool.query(
         `SELECT nombre FROM estudiantes WHERE tutor_id = ?`,
         [t.id]
       );
-
       const [[{ balance }]] = await pool.query(
-        `SELECT 
-            COALESCE((
-              SELECT SUM(p.monto + p.descuento)
-              FROM pagos p
-              JOIN mensualidades mm ON mm.id = p.referencia_id
-              JOIN estudiantes ee ON ee.id = mm.estudiante_id
-              WHERE ee.tutor_id = ?
-            ),0)
-            -
-            COALESCE((
-              SELECT SUM(m.total)
-              FROM mensualidades m
-              JOIN estudiantes e ON e.id = m.estudiante_id
-              WHERE e.tutor_id = ?
-            ),0) AS balance`,
-        [t.id, t.id]
+        `
+        SELECT
+        (
+          /* PAGOS MENSUALIDADES */
+          COALESCE((
+            SELECT SUM(p.monto + p.descuento)
+            FROM pagos p
+            JOIN mensualidades mm ON mm.id = p.referencia_id
+            JOIN estudiantes ee ON ee.id = mm.estudiante_id
+            WHERE ee.tutor_id = ?
+              AND p.tipo = 'MENSUALIDAD'
+          ),0)
+
+          +
+
+          /* PAGOS SERVICIOS */
+          COALESCE((
+            SELECT SUM(p.monto + p.descuento)
+            FROM pagos p
+            JOIN estudiante_servicio es ON es.id = p.referencia_id
+            JOIN estudiantes ee ON ee.id = es.estudiante_id
+            WHERE ee.tutor_id = ?
+              AND p.tipo = 'SERVICIO'
+          ),0)
+
+        )
+
+        -
+
+        (
+          /* TOTAL MENSUALIDADES */
+          COALESCE((
+            SELECT SUM(m.total)
+            FROM mensualidades m
+            JOIN estudiantes e ON e.id = m.estudiante_id
+            WHERE e.tutor_id = ?
+          ),0)
+
+          +
+
+          /* TOTAL SERVICIOS */
+          COALESCE((
+            SELECT SUM(es.total)
+            FROM estudiante_servicio es
+            JOIN estudiantes e ON e.id = es.estudiante_id
+            WHERE e.tutor_id = ?
+              AND es.estado != 'CANCELADO'
+          ),0)
+
+        ) AS balance
+        `,
+        [t.id, t.id, t.id, t.id]
       );
 
       items.push({
@@ -70,7 +101,6 @@ router.get("/", async (req, res) => {
       });
     }
 
-    // filtros
     let filtered = items;
 
     if (status === "DEBT") {
@@ -93,7 +123,6 @@ router.get("/", async (req, res) => {
     apiError(res, "BUSINESS_RULE", "Error listando tutores");
   }
 });
-
 
 // filtro por busqueda, te muestra los datos del tutor si lo buscas por nombre de tutor, hijo o celular
 // ejemplo para que lo pruebes jaelsita - GET http://localhost:3000/api/tutores/search?q=juan
