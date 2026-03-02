@@ -222,6 +222,7 @@ export class PayPage implements OnInit{
         this.draftDiscount = {};
         this.draftPay = {};
         this.historyOpen.clear();
+        console.log('Res:', res);
       },
       error: (err) => {
         console.error(err);

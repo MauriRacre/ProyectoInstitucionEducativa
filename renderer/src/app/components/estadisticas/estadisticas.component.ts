@@ -1,20 +1,22 @@
 import {
-  Component,
-  Input,
-  Output,
-  EventEmitter,
-  OnChanges,
-  AfterViewInit,
-  SimpleChanges,
-  ViewChild,
-  ElementRef
+    Component,
+    Input,
+    Output,
+    EventEmitter,
+    OnChanges,
+    AfterViewInit,
+    SimpleChanges,
+    ViewChild,
+    ElementRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Chart, registerables } from 'chart.js';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
 import jsPDF from 'jspdf';
 import { OnDestroy } from '@angular/core';
 
 Chart.register(...registerables);
+Chart.register(ChartDataLabels);
 
 @Component({
     selector: 'app-estadisticas',
@@ -137,7 +139,7 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
         this.ingresosAnualChart?.destroy();
 
         const mesesOrden = this.meses.map(m => m.nombre);
-
+        console.log(this.ingresosAnual);
         this.ingresosAnualChart = new Chart(
         this.ingresosAnualCanvas.nativeElement,
         {
@@ -240,22 +242,47 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
 
         if (!this.descuentosCanvas) return;
         this.descuentosChart?.destroy();
-
+        const ordenado = [...this.descuentos].sort((a, b) => a.mes - b.mes);
         this.descuentosChart = new Chart(
         this.descuentosCanvas.nativeElement,
         {
             type: 'bar',
             data: {
-            labels: this.descuentos.map(d => `Mes ${d.mes}`),
-            datasets: [{
-                label: 'Descuentos',
-                data: this.descuentos.map(d => d.total)
-            }]
+                labels: ordenado.map(d =>
+                this.meses.find(m => m.id === d.mes)?.nombre ?? ''
+                ),
+                datasets: [{
+                label: `Descuentos`,
+                data: ordenado.map(d => d.total)
+                }]
+            },
+            options: this.baseBarOptions
             }
-        }
         );
     }
-
+    private baseBarOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+            position: 'bottom' as const
+            },
+            datalabels: {
+            color: '#111827',
+            anchor: 'end' as const,
+            align: 'top' as const,
+            font: {
+                weight: 'bold' as const,
+                size: 11
+            }
+            }
+        },
+        scales: {
+            y: {
+            beginAtZero: true
+            }
+        }
+    };
     // =============================
     // NORMALIZADOR
     // =============================
@@ -320,7 +347,9 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
         const doc = new jsPDF('portrait');
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
-    
+        
+        const marginX = 18;
+        const contentWidth = pageWidth - marginX * 2;
         let currentY = 20;
     
         // ==============================
@@ -370,47 +399,73 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
         // FUNCIÓN PARA AGREGAR GRÁFICOS
         // ==============================
     
-        const addChartToPdf = (canvasRef: ElementRef | undefined, title: string) => {
-    
-          if (!canvasRef?.nativeElement) return;
-    
-          const canvas = canvasRef.nativeElement as HTMLCanvasElement;
-          const imgData = canvas.toDataURL('image/png', 1.0);
-    
-          // Nueva página si no cabe
-          if (currentY + 90 > pageHeight - 20) {
+        const addChartToPdf = (
+            canvasRef: ElementRef | undefined,
+            title: string
+        ) => {
+
+            if (!canvasRef?.nativeElement) return;
+
+            const canvas = canvasRef.nativeElement as HTMLCanvasElement;
+            const imgData = canvas.toDataURL('image/png', 1.0);
+
+            const imgProps = doc.getImageProperties(imgData);
+
+            const imgWidth = contentWidth;
+            const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+
+            // Salto automático de página si no cabe
+            if (currentY + imgHeight + 20 > pageHeight - 20) {
             doc.addPage();
-            currentY = 20;
-          }
-    
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(12);
-          doc.text(title, 14, currentY);
-    
-          currentY += 6;
-    
-          doc.addImage(
+            currentY = 22;
+            }
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
+            doc.text(title, marginX, currentY);
+
+            currentY += 6;
+
+            doc.addImage(
             imgData,
             'PNG',
-            14,
+            marginX,
             currentY,
-            pageWidth - 28,
-            70
-          );
-    
-          currentY += 80;
+            imgWidth,
+            imgHeight
+            );
+
+            currentY += imgHeight + 12;
         };
     
         // ==============================
         // GRÁFICOS
         // ==============================
     
-        addChartToPdf(this.ingresosAnualCanvas, `Ingresos Anuales ${this.selectedYear}`);
-        addChartToPdf(this.inscritosCanvas, `Inscritos - ${this.getMonthName()}`);
-        addChartToPdf(this.ingresosCursosCanvas, `Ingresos por Curso - ${this.getMonthName()}`);
-        addChartToPdf(this.morosidadCanvas, `Morosidad - ${this.getMonthName()}`);
-        addChartToPdf(this.descuentosCanvas, `Descuentos Anuales`);
-    
+        addChartToPdf(
+            this.ingresosAnualCanvas,
+            `Ingresos Anuales ${this.selectedYear}`
+        );
+
+        addChartToPdf(
+            this.descuentosCanvas,
+            `Descuentos Anuales ${this.selectedYear}`
+        );
+
+        addChartToPdf(
+            this.inscritosCanvas,
+            `Inscritos por Curso - ${this.getMonthName()}`
+        );
+
+        addChartToPdf(
+            this.ingresosCursosCanvas,
+            `Ingresos por Curso - ${this.getMonthName()}`
+        );
+
+        addChartToPdf(
+            this.morosidadCanvas,
+            `Análisis de Morosidad - ${this.getMonthName()}`
+        );
         // ==============================
         // FOOTER
         // ==============================
@@ -418,15 +473,15 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
         const totalPages = doc.getNumberOfPages();
     
         for (let i = 1; i <= totalPages; i++) {
-          doc.setPage(i);
-          doc.setFontSize(9);
-          doc.setTextColor(150);
-          doc.text(
-            `Página ${i} de ${totalPages}`,
-            pageWidth - 14,
-            pageHeight - 10,
-            { align: 'right' }
-          );
+            doc.setPage(i);
+            doc.setFontSize(9);
+            doc.setTextColor(150);
+            doc.text(
+                `Página ${i} de ${totalPages}`,
+                pageWidth - 14,
+                pageHeight - 10,
+                { align: 'right' }
+            );
         }
     
         // ==============================
@@ -436,5 +491,5 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
         const pdfBlob = doc.output('blob');
         const url = URL.createObjectURL(pdfBlob);
         window.open(url);
-      }
+    }
 }

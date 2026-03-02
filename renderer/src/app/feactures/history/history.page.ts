@@ -201,7 +201,7 @@ export class HistoryPage implements OnInit {
       this.ingresosCursos = res.ingresosCursos;
       this.ranking = res.ranking;
       this.descuentos = res.descuentos;
-      console.log(this.totalEstudiantes, this.totalTutores, this.ingresosAnual, this.morosidad, this.inscritos, this.ingresosCursos, this.ranking, this.descuentos);
+      console.log('Ingresos anual',this.ingresosAnual);
     });
   }
   /** TRANSACCIONES */
@@ -311,10 +311,6 @@ export class HistoryPage implements OnInit {
       .filter(x => x.type === 'PAYMENT')
       .reduce((sum, x) => sum + Number(x.amount ?? 0), 0);
 
-    const totalDescuentos = data
-      .filter(x => x.type === 'EXPENSE')
-      .reduce((sum, x) => sum + Number(x.amount ?? 0), 0);
-
     const totalReversiones = data
       .filter(x => x.type === 'REVERSAL')
       .length;
@@ -326,12 +322,10 @@ export class HistoryPage implements OnInit {
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
     doc.text(`Total Pagos:`, 20, 80);
-    doc.text(`Total Descuentos:`, pageWidth / 2 - 40, 80);
     doc.text(`Total Reversiones:`, pageWidth - 90, 80);
 
     doc.setFont('helvetica', 'normal');
     doc.text(`Bs. ${totalPagos.toFixed(2)}`, 45, 80);
-    doc.text(`Bs. ${totalDescuentos.toFixed(2)}`, pageWidth / 2 - 5, 80);
     doc.text(`${totalReversiones}`, pageWidth - 45, 80);
 
     const rows: string[][] = data.map(x => {
@@ -365,7 +359,8 @@ export class HistoryPage implements OnInit {
         cellPadding: 4,
         valign: 'middle',
         lineColor: [200, 200, 200],
-        lineWidth: 0.2
+        lineWidth: 0.2,
+        overflow: 'linebreak'
       },
       headStyles: {
         fillColor: [30, 64, 175], 
@@ -375,7 +370,11 @@ export class HistoryPage implements OnInit {
         lineColor: [200, 200, 200]
       },
       columnStyles: {
-        6: { halign: 'right' } 
+        5: { cellWidth: 60 },
+        6: {
+          halign: 'right',
+          cellWidth: 25
+        }
       },
       alternateRowStyles: {
         fillColor: [245, 247, 250]

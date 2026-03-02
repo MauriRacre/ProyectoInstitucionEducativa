@@ -1,7 +1,7 @@
 <div class="p-6 space-y-10">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-            <h1 class="text-base sm:text-base font-semibold text-gray-900">Estadisticas</h1>
+            <h1 class="text-base sm:text-lg font-semibold text-gray-900">Estadisticas</h1>
             <p class="text-sm text-gray-500">Ingresos totales, por mes, descuentos, etc.</p>
         </div>
         <button
@@ -13,56 +13,15 @@
             Exportar PDF
         </button>
     </div>
-    <!-- KPIs -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        <div class="bg-white rounded-2xl shadow-md p-8 flex items-center justify-between">
-        <div>
-            <p class="text-gray-500 text-sm">Total Estudiantes</p>
-            <h2 class="text-4xl font-bold text-gray-800 mt-2">
-            {{ totalEstudiantes }}
-            </h2>
-        </div>
-        <div class="bg-blue-100 text-blue-600 p-4 rounded-full">
-            👨‍🎓
-        </div>
-        </div>
-
-        <div class="bg-white rounded-2xl shadow-md p-8 flex items-center justify-between">
-        <div>
-            <p class="text-gray-500 text-sm">Total Tutores</p>
-            <h2 class="text-4xl font-bold text-gray-800 mt-2">
-            {{ totalTutores }}
-            </h2>
-        </div>
-        <div class="bg-green-100 text-green-600 p-4 rounded-full">
-            👨‍👩‍👧
-        </div>
-        </div>
-
+    
+    <div>
+        <h1 class="text-lg font-semibold text-gray-900">
+            Resumen Mensual de Gestión
+        </h1>
+        <p class="text-gray-500 mt-2">
+            Incluye métricas de inscripción por curso, ingresos generados, niveles de morosidad y ranking de cumplimiento de pagos.
+        </p>
     </div>
-
-    <!-- INGRESOS ANUAL -->
-    <div class="bg-white rounded-2xl shadow-md p-8">
-        <h3 class="text-lg font-semibold text-gray-800 mb-6">
-            Ingresos Anuales {{ selectedYear }}
-        </h3>
-
-        <div class="h-80 flex items-center justify-center">
-
-            <ng-container *ngIf="hasIngresosAnual; else noIngresosAnual">
-            <canvas #ingresosAnualCanvas></canvas>
-            </ng-container>
-
-            <ng-template #noIngresosAnual>
-            <div class="text-center text-gray-400">
-                📊 No existen ingresos registrados este año.
-            </div>
-            </ng-template>
-
-        </div>
-    </div>
-
     <!-- SELECTOR DE MES -->
     <div class="bg-white rounded-2xl shadow-md p-6">
 
@@ -189,6 +148,63 @@
             </div>
         </div>
     </div>
+    <div>
+        <h1 class="text-lg font-semibold text-gray-900">
+            Resumen Anual de Gestión
+        </h1>
+        <p class="text-gray-500 mt-2">
+            Consulta los principales indicadores académicos y financieros correspondientes al año actual.
+        </p>
+    </div>
+    <!-- KPIs -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <div class="bg-white rounded-2xl shadow-md p-8 flex items-center justify-between">
+        <div>
+            <p class="text-gray-500 text-sm">Total Estudiantes</p>
+            <h2 class="text-4xl font-bold text-gray-800 mt-2">
+            {{ totalEstudiantes }}
+            </h2>
+        </div>
+        <div class="bg-blue-100 text-blue-600 p-4 rounded-full">
+            👨‍🎓
+        </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-md p-8 flex items-center justify-between">
+        <div>
+            <p class="text-gray-500 text-sm">Total Tutores</p>
+            <h2 class="text-4xl font-bold text-gray-800 mt-2">
+            {{ totalTutores }}
+            </h2>
+        </div>
+        <div class="bg-green-100 text-green-600 p-4 rounded-full">
+            👨‍👩‍👧
+        </div>
+        </div>
+
+    </div>
+
+    <!-- INGRESOS ANUAL -->
+    <div class="bg-white rounded-2xl shadow-md p-8">
+        <h3 class="text-lg font-semibold text-gray-800 mb-6">
+            Ingresos Anuales {{ selectedYear }}
+        </h3>
+
+        <div class="h-80 flex items-center justify-center">
+
+            <ng-container *ngIf="hasIngresosAnual; else noIngresosAnual">
+            <canvas #ingresosAnualCanvas></canvas>
+            </ng-container>
+
+            <ng-template #noIngresosAnual>
+            <div class="text-center text-gray-400">
+                📊 No existen ingresos registrados este año.
+            </div>
+            </ng-template>
+
+        </div>
+    </div>
 
     <!-- DESCUENTOS -->
     <div class="bg-white rounded-2xl shadow-md p-8">
@@ -210,5 +226,4 @@
 
         </div>
     </div>
-
 </div>

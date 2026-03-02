@@ -69,8 +69,19 @@
                     }"
                 />
 
-                <p *ngIf="touchedInvalid('concept')" class="mt-1 text-xs text-red-600">
-                    Concepto requerido (mínimo 5 caracteres).
+                <p *ngIf="form.get('concept')?.touched && form.get('concept')?.errors?.['required']"
+                    class="mt-1 text-xs text-red-600">
+                    Concepto requerido.
+                </p>
+
+                <p *ngIf="form.get('concept')?.touched && form.get('concept')?.errors?.['minlength']"
+                    class="mt-1 text-xs text-red-600">
+                    Mínimo 5 caracteres.
+                </p>
+
+                <p *ngIf="form.get('concept')?.touched && form.get('concept')?.errors?.['maxlength']"
+                    class="mt-1 text-xs text-red-600">
+                    Máximo 200 caracteres.
                 </p>
                 </div>
 

@@ -41,7 +41,7 @@ export class GastoModal implements  OnChanges {
 
     constructor(private fb: FormBuilder) {
         this.form = this.fb.group({
-            concept: ['', [Validators.required, Validators.minLength(5)]],
+            concept: ['', [Validators.required, Validators.minLength(5), Validators.maxLength(200)]],
             monto: [0, [Validators.required, Validators.min(0.01)]],
         });
     }

@@ -266,8 +266,8 @@ router.get("/:tutorId/pay-view", async (req, res) => {
     ==========================*/
     const [[tutor]] = await pool.query(
       `SELECT id, nombre, telefono, correo AS email
-       FROM tutores
-       WHERE id = ?`,
+        FROM tutores
+        WHERE id = ?`,
       [tutorId]
     );
 
@@ -280,8 +280,8 @@ router.get("/:tutorId/pay-view", async (req, res) => {
     ==========================*/
     const [children] = await pool.query(
       `SELECT id, nombre, grado, paralelo
-       FROM estudiantes
-       WHERE tutor_id = ?`,
+        FROM estudiantes
+        WHERE tutor_id = ?`,
       [tutorId]
     );
 
@@ -294,14 +294,14 @@ router.get("/:tutorId/pay-view", async (req, res) => {
       ==========================*/
       const [mensualidades] = await pool.query(
         `SELECT id, mes, anio,total AS monto
-         FROM mensualidades
-         WHERE estudiante_id = ? AND anio = ?
-         ORDER BY anio DESC, mes DESC`,
+          FROM mensualidades
+          WHERE estudiante_id = ? AND anio = ?
+          ORDER BY anio DESC, mes DESC`,
         [child.id, year]
       );
 
       /* =========================
-         Servicios extra
+          Servicios extra
       ==========================*/
       const [conceptosExtra] = await pool.query(
         `SELECT 
@@ -325,7 +325,7 @@ router.get("/:tutorId/pay-view", async (req, res) => {
       const childConcepts = [];
 
       /* =========================
-         Procesar mensualidades
+        Procesar mensualidades
       ==========================*/
       for (const m of mensualidades) {
 
