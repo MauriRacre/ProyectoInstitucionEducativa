@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators, FormGroup } from '@angular/forms';
-
+import { SimpleChanges } from '@angular/core';
 export type DestinoPago = 'PAGAR_AHORA' | 'AGREGAR_DEUDA';
 
 @Component({
@@ -27,7 +27,18 @@ export class ModalAbono {
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
   ];
-
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['open'] && !changes['open'].currentValue) {
+      this.form.reset({
+        estudiante: '',
+        categoria: '',
+        meses: [],
+        monto: 0,
+        descuento: 0,
+        destino: 'PAGAR_AHORA',
+      });
+    }
+  }
   constructor(private fb: FormBuilder) {
     this.form = this.fb.nonNullable.group({
       estudiante: ['', Validators.required],
@@ -181,7 +192,6 @@ export class ModalAbono {
     if (this.form.invalid || this.descuentoExcedeSubtotal) {
       return;
     }
-    console.log(this.form.value);
     const v = this.form.getRawValue() as {
       estudiante: number;
       categoria: string;
@@ -191,35 +201,18 @@ export class ModalAbono {
       destino: DestinoPago;
     };
 
-    this.loading = true;
-    this.setFormDisabled(true);
-    try {
-      await new Promise(res => setTimeout(res, 600));
-      this.saved.emit({
-        estudiante: v.estudiante,
-        categoria: v.categoria,
-        meses: v.meses,
-        montoUnitario: Number(v.monto),
-        descuento: Number(v.descuento),
-        subtotal: this.subtotal,
-        total: this.total,
-        destino: v.destino,
-      });
+    this.saved.emit({
+      estudiante: v.estudiante,
+      categoria: v.categoria,
+      meses: v.meses,
+      montoUnitario: Number(v.monto),
+      descuento: Number(v.descuento),
+      subtotal: this.subtotal,
+      total: this.total,
+      destino: v.destino,
+    });
+    this.closed.emit();
       
-    } catch (e) {
-      this.errorMsg = 'No se pudo guardar el cargo. Intenta nuevamente.';
-    } finally {
-      this.setFormDisabled(false);
-      this.form.reset({
-        estudiante: '',
-        categoria: '',
-        meses: [],          
-        monto: 0,
-        descuento: 0,       
-        destino: 'PAGAR_AHORA',
-      });
-    }
-      this.loading = false;
   }
   private setFormDisabled(disabled: boolean) {
     if (disabled) {

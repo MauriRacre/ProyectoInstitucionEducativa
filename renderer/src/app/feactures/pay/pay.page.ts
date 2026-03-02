@@ -115,7 +115,7 @@ export class PayPage implements OnInit{
   selectedIds = new Set<number>();
   draftDiscount: Partial<Record<number, number>>={};
   draftPay: Partial<Record<number, number>>={};
-
+  isProcessing = false;
   historyOpen = new Set<number>();
   pageSize = 6;
   childPage: Record<number, number>={};
@@ -517,7 +517,7 @@ export class PayPage implements OnInit{
     });
 
     if (!ok) return;
-
+    this.isProcessing = true;
     this.paymentApi.registerMultipleMovements(movements)
       .subscribe({
         next: () => {
@@ -530,7 +530,11 @@ export class PayPage implements OnInit{
         },
         error: err => {
           console.error(err);
+          this.isProcessing = false
           this.toast.error('Error registrando pago');
+        },
+        complete: () =>{
+          this.isProcessing = false 
         }
       });
   }
@@ -938,6 +942,10 @@ export class PayPage implements OnInit{
     normalize(payload.categoria) === "mensualidad";
 
     const tipo = isMensualidad ? "MENSUALIDAD" : "SERVICIO";
+    this.closeModalAbono();
+    
+    this.isProcessing = true;
+
     try {
       const cantidadMeses = payload.meses.length || 1;
       const descuentoPorMes = Math.round((payload.descuento / cantidadMeses) * 100) / 100;
@@ -1021,22 +1029,22 @@ export class PayPage implements OnInit{
           descuentoTotal += descuentoPorMes;
         }
       }
-    this.closeModalAbono();
+    
     if (payload.destino === 'PAGAR_AHORA' && conceptosFactura.length) {
       movimientosFactura.push({
         childId: Number( payload.estudiante),
         conceptos: conceptosFactura,
         descuento: descuentoTotal
       });
-      console.log(movimientosFactura);
       await this.facturaPdf(movimientosFactura);
     }
     this.toast.success('Cargo registrado correctamente');
     this.fetchPayView(this.idTutor);
 
     } catch (error) {
-      console.error(error);
       this.toast.error('Error registrando cargo');
+    } finally{ 
+      this.isProcessing = false;
     }
   }
 

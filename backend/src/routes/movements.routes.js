@@ -183,7 +183,7 @@ router.post("/movements/:movementId/reversal", async (req, res) => {
     const [result] = await conn.query(
       `INSERT INTO pagos
         (tipo, referencia_id, fecha, monto, descuento, nota, responsable, reversed)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
       [
         movement.tipo,
         movement.referencia_id,
