@@ -11,110 +11,95 @@ router.get("/", async (req, res) => {
       pageSize = 10
     } = req.query;
 
-    const offset = (Number(page) - 1) * Number(pageSize);
+    const limit = Number(pageSize);
+    const offset = (Number(page) - 1) * limit;
+    const search = `%${q}%`;
 
-    const [[{ total }]] = await pool.query(
-      `SELECT COUNT(*) as total
-       FROM tutores
-       WHERE nombre LIKE ?`,
-      [`%${q}%`]
-    );
+    let where = `
+      WHERE (
+        t.nombre LIKE ?
+        OR t.correo LIKE ?
+        OR t.telefono LIKE ?
+        OR e.nombre LIKE ?
+      )
+    `;
 
-    const [tutores] = await pool.query(
-      `SELECT id, nombre, correo AS email, telefono
-       FROM tutores
-       WHERE nombre LIKE ?
-       LIMIT ? OFFSET ?`,
-      [`%${q}%`, Number(pageSize), offset]
-    );
+    const params = [search, search, search, search];
 
-    const items = [];
-
-    for (const t of tutores) {
-
-      const [students] = await pool.query(
-        `SELECT nombre FROM estudiantes WHERE tutor_id = ?`,
-        [t.id]
-      );
-      const [[{ balance }]] = await pool.query(
-        `
-        SELECT
+    const baseQuery = `
+      SELECT
+        t.id,
+        t.nombre AS name,
+        t.correo AS email,
+        t.telefono AS phone,
+        GROUP_CONCAT(DISTINCT e.nombre SEPARATOR '||') AS students,
+        /* BALANCE CALCULADO */
         (
-          /* PAGOS MENSUALIDADES */
-          COALESCE((
-            SELECT SUM(p.monto + p.descuento)
-            FROM pagos p
-            JOIN mensualidades mm ON mm.id = p.referencia_id
-            JOIN estudiantes ee ON ee.id = mm.estudiante_id
-            WHERE ee.tutor_id = ?
-              AND p.tipo = 'MENSUALIDAD'
+          COALESCE(SUM(
+            CASE 
+              WHEN p.tipo IN ('MENSUALIDAD','SERVICIO')
+              THEN p.monto + p.descuento
+              ELSE 0
+            END
           ),0)
 
-          +
+          -
 
-          /* PAGOS SERVICIOS */
-          COALESCE((
-            SELECT SUM(p.monto + p.descuento)
-            FROM pagos p
-            JOIN estudiante_servicio es ON es.id = p.referencia_id
-            JOIN estudiantes ee ON ee.id = es.estudiante_id
-            WHERE ee.tutor_id = ?
-              AND p.tipo = 'SERVICIO'
-          ),0)
-
-        )
-
-        -
-
-        (
-          /* TOTAL MENSUALIDADES */
-          COALESCE((
-            SELECT SUM(m.total)
-            FROM mensualidades m
-            JOIN estudiantes e ON e.id = m.estudiante_id
-            WHERE e.tutor_id = ?
-          ),0)
-
-          +
-
-          /* TOTAL SERVICIOS */
-          COALESCE((
-            SELECT SUM(es.total)
-            FROM estudiante_servicio es
-            JOIN estudiantes e ON e.id = es.estudiante_id
-            WHERE e.tutor_id = ?
-              AND es.estado != 'CANCELADO'
-          ),0)
+          (
+            COALESCE(SUM(m.total),0)
+            +
+            COALESCE(SUM(es.total),0)
+          )
 
         ) AS balance
-        `,
-        [t.id, t.id, t.id, t.id]
-      );
 
-      items.push({
-        id: t.id,
-        name: t.nombre,
-        email: t.email,
-        phone: t.telefono,
-        students: students.map(s => s.nombre),
-        balance
-      });
-    }
+      FROM tutores t
+      LEFT JOIN estudiantes e ON e.tutor_id = t.id
+      LEFT JOIN mensualidades m ON m.estudiante_id = e.id
+      LEFT JOIN estudiante_servicio es ON es.estudiante_id = e.id AND es.estado != 'CANCELADO'
+      LEFT JOIN pagos p 
+        ON (
+          (p.tipo = 'MENSUALIDAD' AND p.referencia_id = m.id)
+          OR
+          (p.tipo = 'SERVICIO' AND p.referencia_id = es.id)
+        )
+      ${where}
+      GROUP BY t.id
+    `;
 
-    let filtered = items;
-
+    let having = "";
     if (status === "DEBT") {
-      filtered = items.filter(i => i.balance < 0);
+      having = "HAVING balance < 0";
     }
-
     if (status === "OK") {
-      filtered = items.filter(i => i.balance >= 0);
+      having = "HAVING balance >= 0";
     }
 
+    // TOTAL REAL
+    const [[{ total }]] = await pool.query(
+      `SELECT COUNT(*) as total FROM (${baseQuery} ${having}) as sub`,
+      params
+    );
+
+    // DATA
+    const [rows] = await pool.query(
+      `
+      SELECT * FROM (${baseQuery} ${having}) as sub
+      ORDER BY name ASC
+      LIMIT ? OFFSET ?
+      `,
+      [...params, limit, offset]
+    );
+    const formatted = rows.map(r => ({
+      ...r,
+      students: r.students
+        ? r.students.split('||')
+        : []
+    }));
     res.json({
-      items: filtered,
+      items: formatted,
       page: Number(page),
-      pageSize: Number(pageSize),
+      pageSize: limit,
       total
     });
 
