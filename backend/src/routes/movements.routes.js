@@ -44,7 +44,7 @@ router.post("/payment-concepts/:tipo/:conceptId/movements", async (req, res) => 
       return apiError(res, "NOT_FOUND", "Concepto no encontrado");
     }
 
-    if (concept.estado === "PAGADO") {
+    if (concept.estado === "PAGADO" || concept.estado === "EVENTO_PAGADO" ) {
       return apiError(res, "CONFLICT", "El concepto ya está pagado");
     }
 

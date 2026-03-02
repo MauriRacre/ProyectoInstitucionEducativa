@@ -295,29 +295,33 @@ router.get("/:tutorId/pay-view", async (req, res) => {
       const [mensualidades] = await pool.query(
         `SELECT id, mes, anio,total AS monto
          FROM mensualidades
-         WHERE estudiante_id = ? AND anio = ?`,
+         WHERE estudiante_id = ? AND anio = ?
+         ORDER BY anio DESC, mes DESC`,
         [child.id, year]
       );
 
       /* =========================
          Servicios extra
       ==========================*/
-      const [servicios] = await pool.query(
+      const [conceptosExtra] = await pool.query(
         `SELECT 
             es.id,
             es.mes,
             es.anio,
             es.total AS monto,
             es.servicio_id,
-            s.nombre AS nombre_servicio
-         FROM estudiante_servicio es
-         JOIN servicios s ON s.id = es.servicio_id
-         WHERE es.estudiante_id = ?
-           AND es.anio = ?
-           AND es.estado != 'CANCELADO'`,
+            es.evento_id,
+            s.nombre AS nombre_servicio,
+            ev.evento AS nombre_evento
+        FROM estudiante_servicio es
+        LEFT JOIN servicios s ON s.id = es.servicio_id
+        LEFT JOIN eventos ev ON ev.id = es.evento_id
+        WHERE es.estudiante_id = ?
+          AND es.estado != 'CANCELADO'
+          OR es.anio = ?
+        ORDER BY es.anio DESC, es.mes DESC`,
         [child.id, year]
       );
-
       const childConcepts = [];
 
       /* =========================
@@ -341,7 +345,7 @@ router.get("/:tutorId/pay-view", async (req, res) => {
             `SELECT id, fecha, monto, descuento, nota, responsable
              FROM pagos
              WHERE referencia_id = ?
-             AND tipo = 'MENSUALIDAD'`,
+             AND tipo = 'MENSUALIDAD' AND reversed!=1`,
             [m.id]
           );
 
@@ -372,34 +376,37 @@ router.get("/:tutorId/pay-view", async (req, res) => {
           history
         });
       }
+      for (const item of conceptosExtra) {
 
-      for (const s of servicios) {
+        const tipo = item.evento_id ? "EVENTO" : "SERVICIO";
 
         const [[sum]] = await pool.query(
           `SELECT COALESCE(SUM(monto + descuento),0) AS total
-           FROM pagos
-           WHERE referencia_id = ?
-           AND tipo = 'SERVICIO'`,
-          [s.id]
+          FROM pagos
+          WHERE referencia_id = ?
+          AND tipo = "SERVICIO"`,
+          [item.id]
         );
 
-        const pending = s.monto - sum.total;
+        const pending = item.monto - sum.total;
         let history = [];
 
         if (includeHistory === "true") {
           const [rows] = await pool.query(
             `SELECT id, fecha, monto, descuento, nota, responsable
-             FROM pagos
-             WHERE referencia_id = ?
-             AND tipo = 'SERVICIO'`,
-            [s.id]
+            FROM pagos
+            WHERE referencia_id = ?
+            AND tipo = ?`,
+            [item.id, tipo]
           );
 
           history = rows.map(r => ({
             id: r.id,
             dateISO: r.fecha,
             type: "PAYMENT",
-            conceptLabel: `Servicio ${s.nombre_servicio} ${s.mes}/${s.anio}`,
+            conceptLabel: tipo === "EVENTO"
+              ? `Evento ${item.nombre_evento}`
+              : `Servicio ${item.nombre_servicio} ${item.mes}/${item.anio}`,
             paid: r.monto,
             discount: r.descuento,
             appliedTotal: r.monto + r.descuento,
@@ -411,14 +418,15 @@ router.get("/:tutorId/pay-view", async (req, res) => {
         }
 
         childConcepts.push({
-          id: s.id,
+          id: item.id,
           studentId: child.id,
-          servicio_id: s.servicio_id, 
-          categoryId: 2,
-          categoryName: "SERVICIO",
-          concept: `Servicio ${s.nombre_servicio} ${s.mes}/${s.anio}`,
-          period: { year: s.anio, month: s.mes },
-          amountTotal: s.monto,
+          categoryId: tipo === "EVENTO" ? 3 : 2,
+          categoryName: tipo,
+          concept: tipo === "EVENTO"
+            ? `Evento ${item.nombre_evento}`
+            : `Servicio ${item.nombre_servicio} ${item.mes}/${item.anio}`,
+          period: { year: item.anio, month: item.mes },
+          amountTotal: item.monto,
           pending,
           history
         });

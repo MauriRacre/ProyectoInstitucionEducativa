@@ -242,7 +242,7 @@ router.get("/servicios/:id", async (req, res) => {
     }
 
     const [cursos] = await pool.query(
-      `
+  `
       SELECT 
         es.id AS inscripcion_id,
         s.id AS servicio_id,
@@ -250,8 +250,13 @@ router.get("/servicios/:id", async (req, res) => {
         es.estado
       FROM estudiante_servicio es
       JOIN servicios s ON s.id = es.servicio_id
-      WHERE es.estudiante_id = ?
-        AND es.estado != 'CANCELADO'
+      WHERE es.id IN (
+          SELECT MAX(id)
+          FROM estudiante_servicio
+          WHERE estudiante_id = ?
+            AND estado != 'CANCELADO'
+          GROUP BY servicio_id
+      )
       ORDER BY s.nombre ASC
       `,
       [id]

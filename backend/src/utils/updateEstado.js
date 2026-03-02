@@ -28,24 +28,42 @@ async function updateEstadoMensualidad(id) {
 
 async function updateEstadoServicio(id) {
   const [[concept]] = await pool.query(
-    `SELECT total FROM estudiante_servicio WHERE id = ?`,
+    `SELECT total, servicio_id, evento_id
+     FROM estudiante_servicio
+     WHERE id = ?`,
     [id]
   );
 
+  if (!concept) return;
+
+  const tipo = concept.evento_id ? "EVENTO" : "SERVICIO";
+  console.log(tipo);
   const [[sum]] = await pool.query(
     `SELECT COALESCE(SUM(monto + descuento),0) AS pagado
      FROM pagos
-     WHERE tipo = 'SERVICIO'
+     WHERE tipo = "SERVICIO"
      AND referencia_id = ?
      AND reversed = 0`,
-    [id]
+    [ id]
   );
 
-  const nuevoEstado =
-    sum.pagado >= concept.total ? "PAGADO" : "PENDIENTE";
+  let nuevoEstado;
 
+  if (tipo === "EVENTO") {
+    nuevoEstado =
+      sum.pagado >= concept.total
+        ? "EVENTO_PAGADO"
+        : "EVENTO_PENDIENTE";
+  } else {
+    nuevoEstado =
+      sum.pagado >= concept.total
+        ? "PAGADO"
+        : "PENDIENTE";
+  }
   await pool.query(
-    `UPDATE estudiante_servicio SET estado = ? WHERE id = ?`,
+    `UPDATE estudiante_servicio
+     SET estado = ?
+     WHERE id = ?`,
     [nuevoEstado, id]
   );
 

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 01-03-2026 a las 02:53:30
+-- Tiempo de generación: 02-03-2026 a las 06:47:43
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -48,6 +48,7 @@ CREATE TABLE `estudiantes` (
   `paralelo` enum('A','B','C') NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+
 -- --------------------------------------------------------
 
 --
@@ -57,14 +58,15 @@ CREATE TABLE `estudiantes` (
 CREATE TABLE `estudiante_servicio` (
   `id` int(11) NOT NULL,
   `estudiante_id` int(11) NOT NULL,
-  `servicio_id` int(11) NOT NULL,
+  `servicio_id` int(11) DEFAULT NULL,
   `mes` varchar(20) DEFAULT NULL,
   `anio` int(11) NOT NULL,
   `base_amount` decimal(10,2) NOT NULL,
   `extra_amount` decimal(10,2) DEFAULT 0.00,
   `discount_amount` decimal(10,2) DEFAULT 0.00,
   `total` decimal(10,2) NOT NULL,
-  `estado` varchar(20) DEFAULT 'PENDIENTE'
+  `estado` varchar(20) DEFAULT 'PENDIENTE',
+  `evento_id` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -149,7 +151,7 @@ CREATE TABLE `servicios` (
   `activo` tinyint(1) DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- --------------------------------------------------------
+
 
 --
 -- Estructura de tabla para la tabla `tutores`
@@ -207,8 +209,10 @@ ALTER TABLE `estudiantes`
 --
 ALTER TABLE `estudiante_servicio`
   ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_servicio_mes` (`estudiante_id`,`servicio_id`,`mes`,`anio`),
   ADD KEY `estudiante_id` (`estudiante_id`),
-  ADD KEY `servicio_id` (`servicio_id`);
+  ADD KEY `servicio_id` (`servicio_id`),
+  ADD KEY `fk_evento` (`evento_id`);
 
 --
 -- Indices de la tabla `eventos`
@@ -269,49 +273,49 @@ ALTER TABLE `categorias`
 -- AUTO_INCREMENT de la tabla `estudiantes`
 --
 ALTER TABLE `estudiantes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT de la tabla `estudiante_servicio`
 --
 ALTER TABLE `estudiante_servicio`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=116;
 
 --
 -- AUTO_INCREMENT de la tabla `eventos`
 --
 ALTER TABLE `eventos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT de la tabla `mensualidades`
 --
 ALTER TABLE `mensualidades`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1431;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1553;
 
 --
 -- AUTO_INCREMENT de la tabla `movimientos`
 --
 ALTER TABLE `movimientos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=40;
 
 --
 -- AUTO_INCREMENT de la tabla `pagos`
 --
 ALTER TABLE `pagos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=47;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=58;
 
 --
 -- AUTO_INCREMENT de la tabla `servicios`
 --
 ALTER TABLE `servicios`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT de la tabla `tutores`
 --
 ALTER TABLE `tutores`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT de la tabla `usuarios`
@@ -333,9 +337,9 @@ ALTER TABLE `estudiantes`
 -- Filtros para la tabla `estudiante_servicio`
 --
 ALTER TABLE `estudiante_servicio`
-  ADD UNIQUE KEY `unique_servicio_mes` (`estudiante_id`,`servicio_id`,`mes`,`anio`),
   ADD CONSTRAINT `estudiante_servicio_ibfk_1` FOREIGN KEY (`estudiante_id`) REFERENCES `estudiantes` (`id`),
-  ADD CONSTRAINT `estudiante_servicio_ibfk_2` FOREIGN KEY (`servicio_id`) REFERENCES `servicios` (`id`);
+  ADD CONSTRAINT `estudiante_servicio_ibfk_2` FOREIGN KEY (`servicio_id`) REFERENCES `servicios` (`id`),
+  ADD CONSTRAINT `fk_evento` FOREIGN KEY (`evento_id`) REFERENCES `eventos` (`id`);
 
 --
 -- Filtros para la tabla `mensualidades`

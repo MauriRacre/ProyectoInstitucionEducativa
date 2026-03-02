@@ -43,20 +43,51 @@ router.get("/:id", async (req, res) => {
 });
 
 router.post("/", async (req, res) => {
+  const connection = await pool.getConnection();
+
   try {
+    await connection.beginTransaction();
+
     const { evento, concepto, destino, monto } = req.body;
-    
-    const [result] = await pool.query(
+
+    const [result] = await connection.query(
       `INSERT INTO eventos (evento, concepto, destino, monto)
-        VALUES (?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?)`,
       [evento, concepto, destino, monto]
     );
 
-    res.status(201).json({ id: result.insertId });
+    const eventoId = result.insertId;
+    const [estudiantes] = await connection.query(
+      `SELECT id 
+       FROM estudiantes
+       WHERE CONCAT(grado, ' ', paralelo) = ?`,
+      [destino]
+    );
+
+    for (const estudiante of estudiantes) {
+            await connection.query(
+        `INSERT INTO estudiante_servicio
+        (estudiante_id, evento_id, total, estado)
+        VALUES (?, ?, ?, 'EVENTO')`,
+        [
+          estudiante.id,
+          eventoId,
+          monto
+        ]
+
+      );
+    }
+
+    await connection.commit();
+
+    res.status(201).json({ id: eventoId });
 
   } catch (error) {
+    await connection.rollback();
     console.error(error);
     apiError(res, "BUSINESS_RULE", "Error creando evento");
+  } finally {
+    connection.release();
   }
 });
 

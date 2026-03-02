@@ -213,7 +213,7 @@ router.get("/search", async (req, res) => {
 
     const offset = (Number(page) - 1) * Number(pageSize);
 
-    let wherePagos = "WHERE 1=1 ";
+    let wherePagos = "WHERE 1=1 AND (reversed!=1 OR nota!='Reversión manual') ";
     let whereMovimientos = "WHERE mov.tipo = 'GASTO' "; 
 
     const paramsPagos = [];
@@ -287,7 +287,7 @@ router.get("/search", async (req, res) => {
     // CONCEPT
     // =========================
     if (concept) {
-      wherePagos += "AND CONCAT('Mensualidad ', m.mes, ' ', m.anio) = ? ";
+      wherePagos += "AND CONCAT('Mensualidad ', m.mes, ' ', m.anio) = ?";
       paramsPagos.push(concept);
 
       whereMovimientos += "AND mov.concepto = ? ";
@@ -320,7 +320,31 @@ router.get("/search", async (req, res) => {
       JOIN estudiantes e ON e.id = m.estudiante_id
       JOIN tutores t ON t.id = e.tutor_id
       ${wherePagos}
+      UNION ALL
 
+      SELECT 
+        p.id,
+        DATE(p.fecha) AS dateISO,
+        TIME(p.fecha) AS time,
+        CASE 
+          WHEN p.reversed = 1 OR p.monto < 0 THEN 'REVERSAL'
+          WHEN p.monto = 0 AND p.descuento > 0 THEN 'DISCOUNT'
+          ELSE 'PAYMENT'
+        END AS type,
+        p.responsable AS staff,
+        t.nombre AS tutor,
+        e.nombre AS student,
+        e.grado AS grade,
+        e.paralelo AS parallel,
+        CONCAT('Servicio ', s.nombre, ' ', es.mes, ' ', es.anio) AS concept,
+        p.nota AS note,
+        (p.monto + p.descuento) AS amount
+      FROM pagos p
+      JOIN estudiante_servicio es
+      JOIN servicios s ON s.id = es.servicio_id
+      JOIN estudiantes e ON e.id = es.estudiante_id
+      JOIN tutores t ON t.id = e.tutor_id
+      WHERE p.tipo = 'SERVICIO'
       UNION ALL
 
       SELECT

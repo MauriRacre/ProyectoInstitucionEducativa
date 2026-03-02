@@ -173,21 +173,28 @@ router.get('/estudiante/:studentId', async (req, res) => {
     }
 
     const [rows] = await pool.query(
-      `SELECT 
-        es.id,
-        s.nombre,
-        es.mes,
-        es.anio,
-        es.base_amount,
-        es.extra_amount,
-        es.discount_amount,
-        es.total,
-        es.estado
-      FROM estudiante_servicio es
-      JOIN servicios s ON s.id = es.servicio_id
-      WHERE es.estudiante_id = ? AND es.anio = ?`,
-      [studentId, year]
-    );
+  `SELECT 
+      es.id,
+      s.nombre,
+      es.mes,
+      es.anio,
+      es.base_amount,
+      es.extra_amount,
+      es.discount_amount,
+      es.total,
+      es.estado
+   FROM estudiante_servicio es
+   JOIN servicios s ON s.id = es.servicio_id
+   WHERE es.id IN (
+       SELECT MAX(id)
+       FROM estudiante_servicio
+       WHERE estudiante_id = ?
+         AND anio = ?
+       GROUP BY servicio_id
+   )
+   ORDER BY s.nombre ASC`,
+  [studentId, year]
+);
 
     res.json(rows);
 

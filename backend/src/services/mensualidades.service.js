@@ -26,7 +26,7 @@ async function generarMensualidades(pool) {
       `
       SELECT DISTINCT estudiante_id, servicio_id, total
       FROM estudiante_servicio
-      WHERE estado != 'CANCELADO'
+      WHERE estado = 'PAGADO' AND estado='PENDIENTE'
       `
     );
 
