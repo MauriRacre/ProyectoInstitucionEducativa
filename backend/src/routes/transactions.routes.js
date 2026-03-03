@@ -141,165 +141,170 @@ router.get("/search", async (req, res) => {
       pageSize = 10
     } = req.query;
 
-    const offset = (Number(page) - 1) * Number(pageSize);
+    const limit = Number(pageSize);
+    const offset = (Number(page) - 1) * limit;
 
-    let wherePagos = "WHERE 1=1 AND (reversed!=1 OR nota!='Reversión manual') ";
-    let whereMovimientos = "WHERE mov.tipo = 'GASTO' "; 
-
+    // =========================
+    // CONSTRUCCIÓN FILTROS PAGOS
+    // =========================
+    let wherePagos = "WHERE 1=1 ";
     const paramsPagos = [];
-    const paramsMovimientos = [];
 
-    // =========================
-    // RESPONSABLE
-    // =========================
     if (responsible) {
       wherePagos += "AND p.responsable LIKE ? ";
       paramsPagos.push(`%${responsible}%`);
-
-      whereMovimientos += "AND mov.encargado LIKE ? ";
-      paramsMovimientos.push(`%${responsible}%`);
     }
 
-    // =========================
-    // TUTOR (solo pagos)
-    // =========================
     if (tutor) {
-      wherePagos += "AND t.nombre LIKE ? ";
+      wherePagos += "AND tutor LIKE ? ";
       paramsPagos.push(`%${tutor}%`);
     }
 
-    // =========================
-    // FECHAS
-    // =========================
     if (from) {
       wherePagos += "AND DATE(p.fecha) >= ? ";
       paramsPagos.push(from);
-
-      whereMovimientos += "AND DATE(mov.fecha) >= ? ";
-      paramsMovimientos.push(from);
     }
 
     if (to) {
       wherePagos += "AND DATE(p.fecha) <= ? ";
       paramsPagos.push(to);
-
-      whereMovimientos += "AND DATE(mov.fecha) <= ? ";
-      paramsMovimientos.push(to);
     }
 
-    // =========================
-    // TYPE FILTER
-    // =========================
-    if (type !== "ALL") {
-
-      if (type === "REVERSAL") {
-        wherePagos += "AND (p.reversed = 1 OR p.monto < 0) ";
-        whereMovimientos += "AND 1=0 ";
-      }
-
-      if (type === "DISCOUNT") {
-        wherePagos += "AND (p.monto = 0 AND p.descuento > 0) ";
-        whereMovimientos += "AND 1=0 ";
-      }
-
-      if (type === "PAYMENT") {
-        wherePagos += "AND (p.monto > 0 AND p.reversed = 0) ";
-        whereMovimientos += "AND 1=0 ";
-      }
-
-      if (type === "EXPENSE") {
-        wherePagos += "AND 1=0 ";
-        whereMovimientos += "AND mov.tipo = 'GASTO' ";
-      }
+    if (type === "PAYMENT") {
+      wherePagos += "AND p.monto > 0 AND p.reversed = 0 ";
     }
 
-    // =========================
-    // CONCEPT
-    // =========================
+    if (type === "REVERSAL") {
+      wherePagos += "AND (p.reversed = 1 OR p.monto < 0) ";
+    }
+
+    if (type === "DISCOUNT") {
+      wherePagos += "AND p.monto = 0 AND p.descuento > 0 ";
+    }
+
     if (concept) {
-      wherePagos += "AND CONCAT('Mensualidad ', m.mes, ' ', m.anio) = ?";
-      paramsPagos.push(concept);
-
-      whereMovimientos += "AND mov.concepto = ? ";
-      paramsMovimientos.push(concept);
+      wherePagos += "AND concept LIKE ? ";
+      paramsPagos.push(`%${concept}%`);
     }
 
     // =========================
-    // QUERY UNIFICADA
+    // CONSTRUCCIÓN FILTROS MOVIMIENTOS
+    // =========================
+    let whereMov = "WHERE mov.tipo = 'GASTO' ";
+    const paramsMov = [];
+
+    if (responsible) {
+      whereMov += "AND mov.encargado LIKE ? ";
+      paramsMov.push(`%${responsible}%`);
+    }
+
+    if (from) {
+      whereMov += "AND DATE(mov.fecha) >= ? ";
+      paramsMov.push(from);
+    }
+
+    if (to) {
+      whereMov += "AND DATE(mov.fecha) <= ? ";
+      paramsMov.push(to);
+    }
+
+    if (type === "EXPENSE") {
+      // solo gastos
+    } else if (type !== "ALL") {
+      whereMov += "AND 1=0 ";
+    }
+
+    if (concept) {
+      whereMov += "AND mov.concepto LIKE ? ";
+      paramsMov.push(`%${concept}%`);
+    }
+
+    // =========================
+    // QUERY UNIFICADA CORRECTA
     // =========================
     const baseQuery = `
-      SELECT 
-        p.id,
-        DATE(p.fecha) AS dateISO,
-        TIME(p.fecha) AS time,
-        CASE 
-          WHEN p.reversed = 1 OR p.monto < 0 THEN 'REVERSAL'
-          WHEN p.monto = 0 AND p.descuento > 0 THEN 'DISCOUNT'
-          ELSE 'PAYMENT'
-        END AS type,
-        p.responsable AS staff,
-        t.nombre AS tutor,
-        e.nombre AS student,
-        e.grado AS grade,
-        e.paralelo AS parallel,
-        CONCAT('Mensualidad ', m.mes, ' ', m.anio) AS concept,
-        p.nota AS note,
-        (p.monto + p.descuento) AS amount
-      FROM pagos p
-      JOIN mensualidades m ON m.id = p.referencia_id
-      JOIN estudiantes e ON e.id = m.estudiante_id
-      JOIN tutores t ON t.id = e.tutor_id
-      ${wherePagos}
-      UNION ALL
+      SELECT * FROM (
+        
+        /* ================= MENSUALIDADES ================= */
+        SELECT 
+          p.id,
+          DATE(p.fecha) AS dateISO,
+          TIME(p.fecha) AS time,
+          CASE 
+            WHEN p.reversed = 1 OR p.monto < 0 THEN 'REVERSAL'
+            WHEN p.monto = 0 AND p.descuento > 0 THEN 'DISCOUNT'
+            ELSE 'PAYMENT'
+          END AS type,
+          p.responsable AS staff,
+          t.nombre AS tutor,
+          e.nombre AS student,
+          e.grado AS grade,
+          e.paralelo AS parallel,
+          CONCAT('Mensualidad ', m.mes, ' ', m.anio) AS concept,
+          p.nota AS note,
+          (p.monto + p.descuento) AS amount
+        FROM pagos p
+        JOIN mensualidades m ON m.id = p.referencia_id
+        JOIN estudiantes e ON e.id = m.estudiante_id
+        JOIN tutores t ON t.id = e.tutor_id
+        WHERE p.tipo = 'MENSUALIDAD'
 
-      SELECT 
-        p.id,
-        DATE(p.fecha) AS dateISO,
-        TIME(p.fecha) AS time,
-        CASE 
-          WHEN p.reversed = 1 OR p.monto < 0 THEN 'REVERSAL'
-          WHEN p.monto = 0 AND p.descuento > 0 THEN 'DISCOUNT'
-          ELSE 'PAYMENT'
-        END AS type,
-        p.responsable AS staff,
-        t.nombre AS tutor,
-        e.nombre AS student,
-        e.grado AS grade,
-        e.paralelo AS parallel,
-        CONCAT('Servicio ', s.nombre, ' ', es.mes, ' ', es.anio) AS concept,
-        p.nota AS note,
-        (p.monto + p.descuento) AS amount
-      FROM pagos p
-      JOIN estudiante_servicio es
-      JOIN servicios s ON s.id = es.servicio_id
-      JOIN estudiantes e ON e.id = es.estudiante_id
-      JOIN tutores t ON t.id = e.tutor_id
-      WHERE p.tipo = 'SERVICIO'
-      UNION ALL
+        UNION ALL
 
-      SELECT
-        mov.id,
-        DATE(mov.fecha) AS dateISO,
-        TIME(mov.fecha) AS time,
-        'EXPENSE' AS type,
-        mov.encargado AS staff,
-        NULL AS tutor,
-        NULL AS student,
-        NULL AS grade,
-        NULL AS parallel,
-        mov.concepto AS concept,
-        NULL AS note,
-        mov.monto AS amount
-      FROM movimientos mov
-      ${whereMovimientos}
+        /* ================= SERVICIOS ================= */
+        SELECT 
+          p.id,
+          DATE(p.fecha) AS dateISO,
+          TIME(p.fecha) AS time,
+          CASE 
+            WHEN p.reversed = 1 OR p.monto < 0 THEN 'REVERSAL'
+            WHEN p.monto = 0 AND p.descuento > 0 THEN 'DISCOUNT'
+            ELSE 'PAYMENT'
+          END AS type,
+          p.responsable AS staff,
+          t.nombre AS tutor,
+          e.nombre AS student,
+          e.grado AS grade,
+          e.paralelo AS parallel,
+          CONCAT('Servicio ', s.nombre, ' ', es.mes, ' ', es.anio) AS concept,
+          p.nota AS note,
+          (p.monto + p.descuento) AS amount
+        FROM pagos p
+        JOIN estudiante_servicio es ON es.id = p.referencia_id
+        JOIN servicios s ON s.id = es.servicio_id
+        JOIN estudiantes e ON e.id = es.estudiante_id
+        JOIN tutores t ON t.id = e.tutor_id
+        WHERE p.tipo = 'SERVICIO'
+
+        UNION ALL
+
+        /* ================= GASTOS ================= */
+        SELECT
+          mov.id,
+          DATE(mov.fecha) AS dateISO,
+          TIME(mov.fecha) AS time,
+          'EXPENSE' AS type,
+          mov.encargado AS staff,
+          NULL AS tutor,
+          NULL AS student,
+          NULL AS grade,
+          NULL AS parallel,
+          mov.concepto AS concept,
+          NULL AS note,
+          mov.monto AS amount
+        FROM movimientos mov
+        ${whereMov}
+
+      ) AS combined
+      ${wherePagos.replace("WHERE 1=1", "WHERE 1=1")}
     `;
 
     // =========================
     // TOTAL
     // =========================
     const [[{ total }]] = await pool.query(
-      `SELECT COUNT(*) as total FROM (${baseQuery}) as combined`,
-      [...paramsPagos, ...paramsMovimientos]
+      `SELECT COUNT(*) as total FROM (${baseQuery}) as sub`,
+      [...paramsPagos, ...paramsMov]
     );
 
     // =========================
@@ -307,17 +312,17 @@ router.get("/search", async (req, res) => {
     // =========================
     const [rows] = await pool.query(
       `
-      SELECT * FROM (${baseQuery}) as combined
+      SELECT * FROM (${baseQuery}) as sub
       ORDER BY dateISO DESC, time DESC
       LIMIT ? OFFSET ?
       `,
-      [...paramsPagos, ...paramsMovimientos, Number(pageSize), offset]
+      [...paramsPagos, ...paramsMov, limit, offset]
     );
 
     res.json({
       items: rows,
       page: Number(page),
-      pageSize: Number(pageSize),
+      pageSize: limit,
       total
     });
 
@@ -328,6 +333,172 @@ router.get("/search", async (req, res) => {
     });
   }
 });
+
+router.get("/search-modificado", async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      search = "",
+      type,
+      from,
+      to
+    } = req.query;
+
+    const offset = (page - 1) * limit;
+
+    let whereCombined = "WHERE 1=1 ";
+    const params = [];
+
+    /* ================= FILTRO POR TIPO ================= */
+    if (type === "PAYMENT") {
+      whereCombined += "AND type = 'PAYMENT' ";
+    }
+
+    if (type === "REVERSAL") {
+      whereCombined += "AND type = 'REVERSAL' ";
+    }
+
+    if (type === "DISCOUNT") {
+      whereCombined += "AND type = 'DISCOUNT' ";
+    }
+
+    if (type === "EXPENSE") {
+      whereCombined += "AND type = 'EXPENSE' ";
+    }
+
+    /* ================= FILTRO POR FECHA ================= */
+    if (from) {
+      whereCombined += "AND dateISO >= ? ";
+      params.push(from);
+    }
+
+    if (to) {
+      whereCombined += "AND dateISO <= ? ";
+      params.push(to);
+    }
+
+    /* ================= BUSCADOR GENERAL ================= */
+    if (search) {
+      whereCombined += `
+        AND (
+          tutor LIKE ?
+          OR student LIKE ?
+          OR staff LIKE ?
+          OR concept LIKE ?
+        )
+      `;
+      const searchValue = `%${search}%`;
+      params.push(searchValue, searchValue, searchValue, searchValue);
+    }
+
+    /* ================= QUERY BASE ================= */
+    const baseQuery = `
+      SELECT * FROM (
+
+        /* ================= MENSUALIDADES ================= */
+        SELECT 
+          p.id,
+          DATE(p.fecha) AS dateISO,
+          TIME(p.fecha) AS time,
+          CASE 
+            WHEN p.reversed = 1 OR p.monto < 0 THEN 'REVERSAL'
+            WHEN p.monto = 0 AND p.descuento > 0 THEN 'DISCOUNT'
+            ELSE 'PAYMENT'
+          END AS type,
+          p.responsable AS staff,
+          t.nombre AS tutor,
+          e.nombre AS student,
+          e.grado AS grade,
+          e.paralelo AS parallel,
+          CONCAT('Mensualidad ', m.mes, ' ', m.anio) AS concept,
+          p.nota AS note,
+          (p.monto + p.descuento) AS amount
+        FROM pagos p
+        JOIN mensualidades m ON m.id = p.referencia_id
+        JOIN estudiantes e ON e.id = m.estudiante_id
+        JOIN tutores t ON t.id = e.tutor_id
+        WHERE p.tipo = 'MENSUALIDAD'
+
+        UNION ALL
+
+        /* ================= SERVICIOS ================= */
+        SELECT 
+          p.id,
+          DATE(p.fecha) AS dateISO,
+          TIME(p.fecha) AS time,
+          CASE 
+            WHEN p.reversed = 1 OR p.monto < 0 THEN 'REVERSAL'
+            WHEN p.monto = 0 AND p.descuento > 0 THEN 'DISCOUNT'
+            ELSE 'PAYMENT'
+          END AS type,
+          p.responsable AS staff,
+          t.nombre AS tutor,
+          e.nombre AS student,
+          e.grado AS grade,
+          e.paralelo AS parallel,
+          CONCAT('Servicio ', s.nombre, ' ', es.mes, ' ', es.anio) AS concept,
+          p.nota AS note,
+          (p.monto + p.descuento) AS amount
+        FROM pagos p
+        JOIN estudiante_servicio es ON es.id = p.referencia_id
+        JOIN servicios s ON s.id = es.servicio_id
+        JOIN estudiantes e ON e.id = es.estudiante_id
+        JOIN tutores t ON t.id = e.tutor_id
+        WHERE p.tipo = 'SERVICIO'
+
+        UNION ALL
+
+        /* ================= GASTOS ================= */
+        SELECT
+          mov.id,
+          DATE(mov.fecha) AS dateISO,
+          TIME(mov.fecha) AS time,
+          'EXPENSE' AS type,
+          mov.encargado AS staff,
+          NULL AS tutor,
+          NULL AS student,
+          NULL AS grade,
+          NULL AS parallel,
+          mov.concepto AS concept,
+          NULL AS note,
+          mov.monto AS amount
+        FROM movimientos mov
+        WHERE mov.tipo = 'GASTO'
+
+      ) AS combined
+      ${whereCombined}
+    `;
+
+    /* ================= TOTAL ================= */
+    const [totalResult] = await pool.query(
+      `SELECT COUNT(*) as total FROM (${baseQuery}) as sub`,
+      params
+    );
+
+    const total = totalResult[0].total;
+
+    /* ================= PAGINACIÓN ================= */
+    const [rows] = await pool.query(
+      `${baseQuery}
+       ORDER BY dateISO DESC, time DESC
+       LIMIT ? OFFSET ?`,
+      [...params, parseInt(limit), parseInt(offset)]
+    );
+
+    res.json({
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / limit),
+      data: rows
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
+
 
 // ingresos mes
 router.get("/ingresos-mes", async (req, res) => {
