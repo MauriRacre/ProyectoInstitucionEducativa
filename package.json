@@ -2,5 +2,8 @@
   "dependencies": {
     "chart.js": "^4.5.1",
     "chartjs-plugin-datalabels": "^2.2.0"
+  },
+  "devDependencies": {
+    "electron-builder": "^26.8.1"
   }
 }

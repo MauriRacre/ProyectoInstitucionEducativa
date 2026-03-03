@@ -27,7 +27,25 @@ router.get("/", async (req, res) => {
         e.nombre AS student,
         e.grado AS grade,
         e.paralelo AS parallel,
-        CONCAT('Mensualidad ', m.mes, ' ', m.anio) AS concept,
+        CONCAT(
+          'Mensualidad ',
+          CASE m.mes
+            WHEN 1 THEN 'enero'
+            WHEN 2 THEN 'febrero'
+            WHEN 3 THEN 'marzo'
+            WHEN 4 THEN 'abril'
+            WHEN 5 THEN 'mayo'
+            WHEN 6 THEN 'junio'
+            WHEN 7 THEN 'julio'
+            WHEN 8 THEN 'agosto'
+            WHEN 9 THEN 'septiembre'
+            WHEN 10 THEN 'octubre'
+            WHEN 11 THEN 'noviembre'
+            WHEN 12 THEN 'diciembre'
+          END,
+          ' ',
+          m.anio
+        ) AS concept,
         p.nota AS note,
         (p.monto + p.descuento) AS amount
       FROM pagos p
@@ -56,7 +74,27 @@ router.get("/", async (req, res) => {
         e.nombre AS student,
         e.grado AS grade,
         e.paralelo AS parallel,
-        CONCAT('Servicio ', s.nombre, ' ', es.mes, ' ', es.anio) AS concept,
+            CONCAT(
+        'Servicio ',
+        s.nombre,
+        ' ',
+        CASE es.mes
+          WHEN 1 THEN 'enero'
+          WHEN 2 THEN 'febrero'
+          WHEN 3 THEN 'marzo'
+          WHEN 4 THEN 'abril'
+          WHEN 5 THEN 'mayo'
+          WHEN 6 THEN 'junio'
+          WHEN 7 THEN 'julio'
+          WHEN 8 THEN 'agosto'
+          WHEN 9 THEN 'septiembre'
+          WHEN 10 THEN 'octubre'
+          WHEN 11 THEN 'noviembre'
+          WHEN 12 THEN 'diciembre'
+        END,
+        ' ',
+        es.anio
+      ) AS concept,
         p.nota AS note,
         (p.monto + p.descuento) AS amount
       FROM pagos p
@@ -411,7 +449,25 @@ router.get("/search-modificado", async (req, res) => {
           e.nombre AS student,
           e.grado AS grade,
           e.paralelo AS parallel,
-          CONCAT('Mensualidad ', m.mes, ' ', m.anio) AS concept,
+          CONCAT(
+            'Mensualidad ',
+            CASE m.mes
+              WHEN 1 THEN 'enero'
+              WHEN 2 THEN 'febrero'
+              WHEN 3 THEN 'marzo'
+              WHEN 4 THEN 'abril'
+              WHEN 5 THEN 'mayo'
+              WHEN 6 THEN 'junio'
+              WHEN 7 THEN 'julio'
+              WHEN 8 THEN 'agosto'
+              WHEN 9 THEN 'septiembre'
+              WHEN 10 THEN 'octubre'
+              WHEN 11 THEN 'noviembre'
+              WHEN 12 THEN 'diciembre'
+            END,
+            ' ',
+            m.anio
+          ) AS concept,
           p.nota AS note,
           (p.monto + p.descuento) AS amount
         FROM pagos p
@@ -437,7 +493,27 @@ router.get("/search-modificado", async (req, res) => {
           e.nombre AS student,
           e.grado AS grade,
           e.paralelo AS parallel,
-          CONCAT('Servicio ', s.nombre, ' ', es.mes, ' ', es.anio) AS concept,
+          CONCAT(
+            'Servicio ',
+            s.nombre,
+            ' ',
+            CASE es.mes
+              WHEN 1 THEN 'enero'
+              WHEN 2 THEN 'febrero'
+              WHEN 3 THEN 'marzo'
+              WHEN 4 THEN 'abril'
+              WHEN 5 THEN 'mayo'
+              WHEN 6 THEN 'junio'
+              WHEN 7 THEN 'julio'
+              WHEN 8 THEN 'agosto'
+              WHEN 9 THEN 'septiembre'
+              WHEN 10 THEN 'octubre'
+              WHEN 11 THEN 'noviembre'
+              WHEN 12 THEN 'diciembre'
+            END,
+            ' ',
+            es.anio
+          ) AS concept,
           p.nota AS note,
           (p.monto + p.descuento) AS amount
         FROM pagos p
