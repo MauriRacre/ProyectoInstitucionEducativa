@@ -35,23 +35,50 @@ router.get("/", async (req, res) => {
         GROUP_CONCAT(DISTINCT e.nombre SEPARATOR '||') AS students,
         /* BALANCE CALCULADO */
         (
-          COALESCE(SUM(
-            CASE 
-              WHEN p.tipo IN ('MENSUALIDAD','SERVICIO')
-              THEN p.monto + p.descuento
-              ELSE 0
-            END
+        /* TOTAL PAGADO */
+        COALESCE((
+          SELECT SUM(p.monto + p.descuento)
+          FROM pagos p
+          JOIN estudiantes e2 ON (
+            (p.tipo = 'MENSUALIDAD' AND EXISTS (
+                SELECT 1 FROM mensualidades m2 
+                WHERE m2.id = p.referencia_id 
+                AND m2.estudiante_id = e2.id
+            ))
+            OR
+            (p.tipo = 'SERVICIO' AND EXISTS (
+                SELECT 1 FROM estudiante_servicio es2 
+                WHERE es2.id = p.referencia_id 
+                AND es2.estudiante_id = e2.id
+            ))
+          )
+          WHERE e2.tutor_id = t.id
+            /*AND p.reversed = 0*/
+        ),0)
+
+        -
+
+        /* TOTAL DEUDA */
+        (
+          COALESCE((
+            SELECT SUM(m2.total)
+            FROM mensualidades m2
+            JOIN estudiantes e3 ON e3.id = m2.estudiante_id
+            WHERE e3.tutor_id = t.id
           ),0)
 
-          -
+          +
 
-          (
-            COALESCE(SUM(m.total),0)
-            +
-            COALESCE(SUM(es.total),0)
-          )
+          COALESCE((
+            SELECT SUM(es2.total)
+            FROM estudiante_servicio es2
+            JOIN estudiantes e4 ON e4.id = es2.estudiante_id
+            WHERE e4.tutor_id = t.id
+              AND es2.estado != 'CANCELADO'
+          ),0)
+        )
 
-        ) AS balance
+      ) AS balance
 
       FROM tutores t
       LEFT JOIN estudiantes e ON e.tutor_id = t.id
@@ -303,7 +330,6 @@ router.get("/:tutorId/pay-view", async (req, res) => {
         LEFT JOIN eventos ev ON ev.id = es.evento_id
         WHERE es.estudiante_id = ?
           AND es.estado != 'CANCELADO'
-          OR es.anio = ?
         ORDER BY es.anio DESC, es.mes DESC`,
         [child.id, year]
       );
@@ -339,9 +365,9 @@ router.get("/:tutorId/pay-view", async (req, res) => {
             dateISO: r.fecha,
             type: "PAYMENT",
             conceptLabel: `Mensualidad ${m.mes}/${m.anio}`,
-            paid: r.total,
+            paid: r.monto,
             discount: r.descuento,
-            appliedTotal: r.total + r.descuento,
+            appliedTotal: Number(r.monto) + Number(r.descuento),
             note: r.nota,
             staff: r.responsable,
             movementId: r.id,
@@ -380,8 +406,8 @@ router.get("/:tutorId/pay-view", async (req, res) => {
           const [rows] = await pool.query(
             `SELECT id, fecha, monto, descuento, nota, responsable
             FROM pagos
-            WHERE referencia_id = ?
-            AND tipo = ?`,
+           WHERE (referencia_id = ?
+            AND tipo = "SERVICIO" ) AND (nota="Reversión manual" or reversed =0)`,
             [item.id, tipo]
           );
 

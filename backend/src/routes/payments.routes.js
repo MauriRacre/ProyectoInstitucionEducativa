@@ -6,10 +6,6 @@ const { apiError } = require("../utils/apiError");
 router.get("/view/:tutorId", async (req, res) => {
   try {
     const { tutorId } = req.params;
-
-    /* =========================
-       1️⃣ Obtener tutor
-    ==========================*/
     const [tutores] = await pool.query(
       `SELECT id, nombre AS name, telefono AS phone, correo AS email
        FROM tutores
@@ -22,20 +18,12 @@ router.get("/view/:tutorId", async (req, res) => {
     }
 
     const tutor = tutores[0];
-
-    /* =========================
-       2️⃣ Obtener estudiantes
-    ==========================*/
     const [students] = await pool.query(
       `SELECT id, nombre AS name, grado AS grade, paralelo AS parallel
        FROM estudiantes
        WHERE tutor_id = ?`,
       [tutorId]
     );
-
-    /* =========================
-       3️⃣ Obtener mensualidades
-    ==========================*/
     const [mensualidades] = await pool.query(
       `SELECT *
        FROM mensualidades
@@ -44,10 +32,6 @@ router.get("/view/:tutorId", async (req, res) => {
        )`,
       [tutorId]
     );
-
-    /* =========================
-       4️⃣ Obtener servicios extra
-    ==========================*/
     const [extraServices] = await pool.query(
       `
       SELECT 
@@ -65,10 +49,6 @@ router.get("/view/:tutorId", async (req, res) => {
       `,
       [tutorId]
     );
-
-    /* =========================
-       5️⃣ Obtener pagos (ambos tipos)
-    ==========================*/
     const [payments] = await pool.query(
       `
       SELECT *
@@ -96,19 +76,11 @@ router.get("/view/:tutorId", async (req, res) => {
       `,
       [tutorId, tutorId]
     );
-
-    /* =========================
-       6️⃣ Inicializar estructura
-    ==========================*/
     const paymentsByChild = {};
 
     for (const student of students) {
       paymentsByChild[student.id] = [];
     }
-
-    /* =========================
-       7️⃣ Procesar mensualidades
-    ==========================*/
     for (const m of mensualidades) {
 
       const history = payments
@@ -140,10 +112,6 @@ router.get("/view/:tutorId", async (req, res) => {
         history
       });
     }
-
-    /* =========================
-       8️⃣ Procesar servicios
-    ==========================*/
     for (const s of extraServices) {
 
       const history = payments
@@ -175,10 +143,6 @@ router.get("/view/:tutorId", async (req, res) => {
         history
       });
     }
-
-    /* =========================
-       9️⃣ Respuesta final
-    ==========================*/
     res.json({
       tutor,
       children: students,
