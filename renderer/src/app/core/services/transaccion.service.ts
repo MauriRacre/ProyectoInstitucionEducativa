@@ -27,21 +27,18 @@ export interface TransactionItem {
 }
 
 export interface PaginatedResponse<T> {
-    items: T[];
-    page: number;
-    pageSize: number;
     total: number;
+    data: T[];
+    page: number;
+    totalPages: number;
 }
 
 export interface TransactionSearchParams {
-    responsible?: string;
-    tutor?: string;
-    type?: 'ALL' | TransactionType;
-    concept?: string;
+    search?: string;
     from?: string; 
     to?: string;   
     page?: number;
-    pageSize?: number;
+    limit?: number;
 }
 
 @Injectable({
@@ -85,7 +82,7 @@ export class TransactionsService {
         });
 
         return this.http.get<PaginatedResponse<TransactionItem>>(
-        `${this.baseUrl}${this.resource}/search`,
+        `${this.baseUrl}${this.resource}/search-modificado`,
         { params }
         );
     }

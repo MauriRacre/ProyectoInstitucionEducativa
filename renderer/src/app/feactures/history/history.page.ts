@@ -20,7 +20,6 @@ interface Filters {
   q: string;
   from: string;
   to: string;
-  concept: string;
 }
 @Component({
   selector: 'app-history',
@@ -49,7 +48,7 @@ export class HistoryPage implements OnInit {
   transacciones: TransactionItem[] = [];
   paged: TransactionItem[] = [];
   concepts: string[] = [];
-  filters: Filters = { q: '', from: '', to: '', concept: '' };
+  filters: Filters = { q: '', from: '', to: '' };
   page = 1;
   pageSize = 10;
   totalPages = 1;
@@ -118,7 +117,7 @@ export class HistoryPage implements OnInit {
       .subscribe({
         next: (res) => {
           console.log(res);
-          this.transacciones = res.items.map(x => ({
+          this.transacciones = res.data.map(x => ({
             id: x.id,
             dateISO: x.dateISO??null,
             time: x.time ?? '',
@@ -207,17 +206,16 @@ export class HistoryPage implements OnInit {
   /** TRANSACCIONES */
   applyFilters() {
     this.isLoading = true;
-
+    
     this.txService.searchTransactions({
-      tutor: this.filters.q,
+      search: this.filters.q,
       from: this.filters.from,
       to: this.filters.to,
-      concept: this.filters.concept, 
       page: this.page,
-      pageSize: this.pageSize
+      limit: this.pageSize
     }).subscribe({
       next: res => {
-        this.transacciones = res.items.map(x => {
+        this.transacciones = res.data.map(x => {
           const fecha = x.dateISO ?? (x.fecha ? x.fecha.split('T')[0] : '');
           const hora = x.time ?? (x.fecha ? x.fecha.split('T')[1]?.substring(0,5) : '');
 
@@ -248,7 +246,7 @@ export class HistoryPage implements OnInit {
   }
 
   resetFilters() {
-    this.filters = { q: '', from: '', to: '', concept: '' };
+    this.filters = { q: '', from: '', to: ''};
     this.applyFilters();
   }
   /** PDF */
@@ -256,16 +254,15 @@ export class HistoryPage implements OnInit {
 
   exportPdf(): void {
     this.txService.searchTransactions({
-      tutor: this.filters.q,
+      search: this.filters.q,
       from: this.filters.from,
       to: this.filters.to,
-      concept: this.filters.concept,
       page: 1,
-      pageSize: 10000   
+      limit: 10000   
     }).subscribe({
       next: res => {
         console.log(res);
-        this.generatePdf(res.items);
+        this.generatePdf(res.data);
       }
     });
   }
@@ -575,7 +572,7 @@ export class HistoryPage implements OnInit {
   goToPage(p: number) {
     if (p < 1) return;
     this.page = p;
-    this.loadTransactions();
+    this.applyFilters();
   }
 
   private refreshPagination() {

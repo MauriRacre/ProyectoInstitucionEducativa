@@ -109,7 +109,7 @@ router.get("/", async (req, res) => {
     );
 
     res.json({
-      items: rows,
+      data: rows,
       page,
       pageSize,
       total
