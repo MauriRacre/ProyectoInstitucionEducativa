@@ -137,9 +137,11 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
 
         if (!this.ingresosAnualCanvas) return;
         this.ingresosAnualChart?.destroy();
-
         const mesesOrden = this.meses.map(m => m.nombre);
-        console.log(this.ingresosAnual);
+        const dataMeses = mesesOrden.map(
+            mes => Number(this.ingresosAnual?.[mes]) || 0
+        );
+        
         this.ingresosAnualChart = new Chart(
         this.ingresosAnualCanvas.nativeElement,
         {
@@ -148,10 +150,10 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
             labels: mesesOrden,
             datasets: [{
                 label: `Ingresos ${this.selectedYear}`,
-                data: mesesOrden.map(m => this.ingresosAnual[m] || 0)
+                data: dataMeses
             }]
             },
-            options: { responsive: true }
+            options: this.baseBarOptions
         }
         );
     }
@@ -242,18 +244,27 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
 
         if (!this.descuentosCanvas) return;
         this.descuentosChart?.destroy();
-        const ordenado = [...this.descuentos].sort((a, b) => a.mes - b.mes);
+        const mesesOrden = this.meses.map(m => m.nombre);
+            console.log("this.descuentos ",this.descuentos)
+        const dataMeses = mesesOrden.map((_, index) => {
+
+            const mes = index + 1;
+
+            const encontrado = this.descuentos.find(
+                d => Number(d.mes) === mes
+            );
+
+            return encontrado ? Number(encontrado.total) : 0;
+        });
         this.descuentosChart = new Chart(
         this.descuentosCanvas.nativeElement,
         {
             type: 'bar',
             data: {
-                labels: ordenado.map(d =>
-                this.meses.find(m => m.id === d.mes)?.nombre ?? ''
-                ),
+                labels: mesesOrden,
                 datasets: [{
-                label: `Descuentos`,
-                data: ordenado.map(d => d.total)
+                label: `Descuentos ${this.selectedYear}`,
+                data: dataMeses
                 }]
             },
             options: this.baseBarOptions
@@ -263,6 +274,11 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
     private baseBarOptions = {
         responsive: true,
         maintainAspectRatio: false,
+        layout: {
+            padding: {
+            top: 30
+            }
+        },
         plugins: {
             legend: {
             position: 'bottom' as const
@@ -271,6 +287,7 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
             color: '#111827',
             anchor: 'end' as const,
             align: 'top' as const,
+            offset:4,
             font: {
                 weight: 'bold' as const,
                 size: 11
@@ -447,10 +464,6 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
             `Ingresos Anuales ${this.selectedYear}`
         );
 
-        addChartToPdf(
-            this.descuentosCanvas,
-            `Descuentos Anuales ${this.selectedYear}`
-        );
 
         addChartToPdf(
             this.inscritosCanvas,

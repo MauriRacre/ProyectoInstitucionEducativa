@@ -5,7 +5,7 @@ import { ModalService } from '../../core/swal/swal.service';
 import { ToastService } from '../../core/toast/toast.service';
 import { ModalAbono, DestinoPago } from '../../components/abono/modalAbono';
 import { ModalRegister, Mode, Parent } from '../../components/register/modalRegister';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { TutorApiService } from '../../core/services/tutor.service';
 import { CategoryService, CategoryDTO, CategoryType } from '../../core/services/categoria.service';
 import { PaymentService } from '../../core/services/pay.service';
@@ -16,6 +16,7 @@ import autoTable from 'jspdf-autotable';
 import { ReciboService } from '../../core/services/recibo.service';
 import { StudentService } from '../../core/services/estudiantes.service';
 import { InscriptionService } from '../../core/services/inscription.service';
+import { Router } from '@angular/router';
 
 type Parallel = 'A' | 'B' | 'C';
 type Grade = 'Kinder' | 'Pre-Kinder' | '1er' | '2do' | '3ro' | '4to' | '5to' | '6to';
@@ -89,7 +90,7 @@ interface PayViewApi {
 @Component({
     selector: 'app-pay-page',
     standalone: true,
-    imports: [CommonModule, FormsModule, ModalAbono, ModalRegister
+    imports: [CommonModule, FormsModule, ModalAbono, ModalRegister, RouterModule
     ],
     templateUrl: './pay.page.html'
 })
@@ -104,8 +105,12 @@ export class PayPage implements OnInit{
     private auth: AuthService,
     private reciboNum: ReciboService,
     private inscriptionService: InscriptionService,
-    private estudianteService: StudentService
+    private estudianteService: StudentService,
+    private router: Router
   ) {}
+      goHome() {
+      this.router.navigate(['/']);
+    }
 
   isLoading = false;
   apiErrorMsg='';

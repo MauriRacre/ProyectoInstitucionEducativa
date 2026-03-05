@@ -207,23 +207,5 @@
     </div>
 
     <!-- DESCUENTOS -->
-    <div class="bg-white rounded-2xl shadow-md p-8">
-        <h3 class="text-lg font-semibold text-gray-800 mb-6">
-            Descuentos Anuales
-        </h3>
-
-        <div class="h-72 flex items-center justify-center">
-
-            <ng-container *ngIf="hasDescuentos; else noDescuentos">
-            <canvas #descuentosCanvas></canvas>
-            </ng-container>
-
-            <ng-template #noDescuentos>
-            <div class="text-center text-gray-400">
-                🧾 No existen descuentos registrados este año.
-            </div>
-            </ng-template>
-
-        </div>
-    </div>
+    
 </div>

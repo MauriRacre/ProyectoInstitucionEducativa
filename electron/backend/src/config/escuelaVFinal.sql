@@ -185,7 +185,7 @@ CREATE TABLE `usuarios` (
 --
 
 INSERT INTO `usuarios` (`id`, `nombre`, `username`, `email`, `rol`, `ping`) VALUES
-(1, 'Admin', 'admin', NULL, 'ADMIN', '1234');
+(1, 'Simon', 'simonsp', NULL, 'ADMIN', '3795');
 
 --
 -- Índices para tablas volcadas

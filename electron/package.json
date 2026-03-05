@@ -1,19 +1,47 @@
 {
-  "name": "electron",
+  "name": "proyecto-institucion-educativa",
   "version": "1.0.0",
-  "description": "",
   "main": "main.js",
-  "scripts": {
-    "start": "electron ."
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "type": "commonjs",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
   "devDependencies": {
-    "electron": "^40.4.0"
+    "electron": "^40.4.0",
+    "electron-builder": "^26.8.1"
   },
   "dependencies": {
     "concurrently": "^9.2.1"
+  },
+  "build": {
+    "appId": "com.institucion.educativa",
+    "productName": "InstitucionEducativa",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!backend${/*}",
+      "!dist${/*}"
+    ],
+    "extraResources": [
+      {
+        "from": "backend",
+        "to": "backend",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "asar": true,
+    "win": {
+      "target": "nsis",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

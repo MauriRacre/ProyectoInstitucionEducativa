@@ -1,13 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { TutorApiService} from '../../core/services/tutor.service';
 import { StudentService } from '../../core/services/estudiantes.service';
 import { InscriptionService } from '../../core/services/inscription.service';
 import { CategoryService } from '../../core/services/categoria.service';
 import { ToastService } from '../../core/toast/toast.service';
 import { ModalService } from '../../core/swal/swal.service';
+import { Router } from '@angular/router';
 
 interface Course {
   inscripcionId: number;
@@ -25,7 +26,7 @@ interface Child {
 
 @Component({
     selector: 'app-course-register',
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule, FormsModule,RouterModule],
     templateUrl: './register.page.html'
 })
 export class RegisterPage implements OnInit {
@@ -36,7 +37,8 @@ export class RegisterPage implements OnInit {
         private incriptionService: InscriptionService,
         private categoryService: CategoryService,
         private toast: ToastService,
-        private modal: ModalService
+        private modal: ModalService,
+        private router: Router
     ){}
     tutor = {
         id: 0,
