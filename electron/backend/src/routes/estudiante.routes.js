@@ -274,19 +274,80 @@ router.get("/servicios/:id", async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  try {
-    const { nombre, grado, paralelo, tutor_id } = req.body;
 
-    const [result] = await pool.query(
-      "INSERT INTO estudiantes (nombre, grado, paralelo, tutor_id) VALUES (?, ?, ?, ?)",
+  const connection = await pool.getConnection();
+
+  try {
+
+    const { 
+      nombre, 
+      grado, 
+      paralelo, 
+      tutor_id,
+      monto_inicial = 490,
+      period
+    } = req.body;
+
+    if (!period) {
+      return res.status(400).json({ ok:false, message:"Periodo requerido"});
+    }
+
+    const { year, month } = period;
+
+    await connection.beginTransaction();
+
+    const [result] = await connection.query(
+      `INSERT INTO estudiantes (nombre, grado, paralelo, tutor_id)
+       VALUES (?, ?, ?, ?)`,
       [nombre, grado, paralelo, tutor_id]
     );
 
-    res.json({ ok: true, id: result.insertId });
+    const estudianteId = result.insertId;
+
+    const base_amount = monto_inicial;
+    const extra_amount = 0;
+    const discount_amount = 0;
+
+    const total = base_amount + extra_amount - discount_amount;
+
+    const [mensualidad] = await connection.query(
+      `INSERT INTO mensualidades
+      (estudiante_id, mes, anio, base_amount, extra_amount, discount_amount, total, tipo, estado)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'MENSUALIDAD', 'PENDIENTE')`,
+      [
+        estudianteId,
+        month,
+        year,
+        base_amount,
+        extra_amount,
+        discount_amount,
+        total
+      ]
+    );
+
+    await connection.commit();
+
+    res.json({
+      ok: true,
+      estudiante_id: estudianteId,
+      mensualidad_id: mensualidad.insertId
+    });
+
   } catch (error) {
+
+    await connection.rollback();
+
     console.error(error);
-    res.status(500).json({ ok: false });
+
+    res.status(500).json({
+      ok:false,
+      message:"Error creando estudiante"
+    });
+
+  } finally {
+    connection.release();
   }
+
 });
 router.get("/nomina/courses", async(req, res)=>{
   try {

@@ -10,9 +10,7 @@ router.get("/", async (req, res) => {
     const offset = (page - 1) * pageSize;
 
     const baseQuery = `
-      /* =========================
-        PAGOS MENSUALIDADES
-      ==========================*/
+      
       SELECT 
         p.id,
         DATE(p.fecha) AS dateISO,
