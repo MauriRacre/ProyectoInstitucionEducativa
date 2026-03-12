@@ -182,6 +182,7 @@ router.get("/descuentos-mes", async (req, res) => {
 });
 router.get("/descuentos-anual", async (req, res) => {
   try {
+
     const { year } = req.query;
 
     if (!year) {
@@ -190,19 +191,26 @@ router.get("/descuentos-anual", async (req, res) => {
 
     const [rows] = await pool.query(`
       SELECT 
-        mes,
-        SUM(discount_amount) AS total
-      FROM mensualidades
-      WHERE anio = ?
-      GROUP BY mes
+        MONTH(fecha) AS mes,
+        SUM(descuento) AS total
+      FROM pagos
+      WHERE YEAR(fecha) = ?
+      AND descuento > 0
+      AND reversed = 0
+      GROUP BY MONTH(fecha)
       ORDER BY mes
     `, [year]);
 
     res.json(rows);
 
   } catch (error) {
+
     console.error(error);
-    res.status(500).json({ message: "Error obteniendo descuentos" });
+
+    res.status(500).json({
+      message: "Error obteniendo descuentos"
+    });
+
   }
 });
 module.exports = router;

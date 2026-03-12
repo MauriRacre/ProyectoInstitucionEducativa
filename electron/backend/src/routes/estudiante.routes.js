@@ -284,7 +284,7 @@ router.post('/', async (req, res) => {
       grado, 
       paralelo, 
       tutor_id,
-      monto_inicial = 490,
+      monto,
       period
     } = req.body;
 
@@ -297,14 +297,13 @@ router.post('/', async (req, res) => {
     await connection.beginTransaction();
 
     const [result] = await connection.query(
-      `INSERT INTO estudiantes (nombre, grado, paralelo, tutor_id)
-       VALUES (?, ?, ?, ?)`,
-      [nombre, grado, paralelo, tutor_id]
+      `INSERT INTO estudiantes (nombre, tutor_id,grado, paralelo, monto)
+       VALUES (?, ?, ?, ?, ?)`,
+      [nombre, tutor_id, grado, paralelo, monto]
     );
 
     const estudianteId = result.insertId;
-
-    const base_amount = monto_inicial;
+    const base_amount = monto;
     const extra_amount = 0;
     const discount_amount = 0;
 
@@ -349,6 +348,7 @@ router.post('/', async (req, res) => {
   }
 
 });
+
 router.get("/nomina/courses", async(req, res)=>{
   try {
     const [rows] = await pool.query(`

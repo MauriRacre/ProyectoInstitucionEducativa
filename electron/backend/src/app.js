@@ -24,6 +24,7 @@ app.use("/api/events", require("./routes/events.routes"));
 app.use("/api/dashboard", require("./routes/dashboard.routes"));
 app.use("/api/transactions", require("./routes/transactions.routes"));
 app.use("/api/reportes", require("./routes/reportes.routes"));
+app.use("/api/gastos", require("./routes/gastos.routes"));
 
 const { generarMensualidades } = require("./services/mensualidades.service");
 
