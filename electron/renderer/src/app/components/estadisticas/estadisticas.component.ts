@@ -463,7 +463,11 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
             this.ingresosAnualCanvas,
             `Ingresos Anuales ${this.selectedYear}`
         );
-
+        
+        addChartToPdf(
+            this.descuentosCanvas,
+            `Descuentos Anuales ${this.selectedYear}`
+        )
 
         addChartToPdf(
             this.inscritosCanvas,
@@ -479,6 +483,7 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
             this.morosidadCanvas,
             `Análisis de Morosidad - ${this.getMonthName()}`
         );
+
         // ==============================
         // FOOTER
         // ==============================

@@ -7,7 +7,7 @@ import { ModalRegister } from '../../components/register/modalRegister';
 import { RouterLink } from "@angular/router";
 import { TutorApiService, TutorStatusFilter, TutorListItem, TutorListResponse } from '../../core/services/tutor.service';
 import { finalize } from 'rxjs';
-
+import { CategoryService } from '../../core/services/categoria.service';
 type TabKey = 'all' | 'debt' | 'ok';
 
 @Component({
@@ -25,7 +25,8 @@ export class Directory implements OnInit{
     constructor(
         private toast: ToastService,
         private modal: ModalService,
-        private tutorapi: TutorApiService
+        private tutorapi: TutorApiService,
+        private categoriaService: CategoryService
     ){}
     query = '';
     selectedTab: TabKey = 'all';
@@ -36,9 +37,16 @@ export class Directory implements OnInit{
     tutors: TutorListItem[]=[];
     total= 0;
     isLoading = false;
+    categories: string[] = [];
+    selectedCategory = '';
     ngOnInit(): void {
-        this.loadTutors();
+        this.loadAll();
     }
+    private loadAll(){
+        this.loadTutors();
+        this.loadCategories();
+    }
+
     private tabToStatus(tab:TabKey): TutorStatusFilter{
         if(tab === 'debt') return 'DEBT';
         if(tab === 'ok') return 'OK';
@@ -90,7 +98,17 @@ export class Directory implements OnInit{
             }
         });
         }
-
+    loadCategories(): void {
+        this.categoriaService.getCoursesAll().subscribe({
+        next: (res: string[]) => {
+            this.categories = res;
+            console.log(this.categories);
+        },
+        error: (err) => {
+            console.error(err);
+        }
+        });
+    }
     get pagedTutors(): TutorListItem[]{
         return this.tutors;
     }

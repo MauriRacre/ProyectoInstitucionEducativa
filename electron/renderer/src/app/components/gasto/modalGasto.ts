@@ -19,6 +19,7 @@ export type ExpenseMode = 'create' | 'edit';
 export interface ExpenseFormValue {
     concept: string;
     monto: number;
+    paymentMethod: string
 }
 
 @Component({
@@ -43,6 +44,7 @@ export class GastoModal implements  OnChanges {
         this.form = this.fb.group({
             concept: ['', [Validators.required, Validators.minLength(5), Validators.maxLength(200)]],
             monto: [0, [Validators.required, Validators.min(0.01)]],
+            paymentMethod:['cash', Validators.required]
         });
     }
 
@@ -54,7 +56,8 @@ export class GastoModal implements  OnChanges {
         if (changes['open'] && !this.open) {
         this.form.reset({
             concept: '',
-            monto: 0
+            monto: 0,
+            paymentMethod: 'cash'
         });
         this.loading = false;
         }
@@ -77,7 +80,8 @@ export class GastoModal implements  OnChanges {
 
         const value: ExpenseFormValue = {
             concept: this.form.value.concept!,
-            monto: Number(this.form.value.monto)
+            monto: Number(this.form.value.monto),
+            paymentMethod: this.form.value.paymentMethod
         };
 
         this.save.emit(value);

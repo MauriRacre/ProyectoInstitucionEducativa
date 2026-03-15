@@ -130,7 +130,7 @@ export class HistoryPage implements OnInit {
             concept: x.concept ?? '',
             note: x.note ?? '',
             amount: this.round2(x.amount),
-          }));
+          }));4
 
           this.totalFromApi = res.total;
           this.applyFilters();
@@ -348,6 +348,7 @@ export class HistoryPage implements OnInit {
         'Tutor',
         'Alumno',
         'Concepto',
+        'Método de Pago',
         'Monto'
       ]],
       body: rows,
@@ -368,7 +369,7 @@ export class HistoryPage implements OnInit {
       },
       columnStyles: {
         5: { cellWidth: 60 },
-        6: {
+        7: {
           halign: 'right',
           cellWidth: 25
         }
