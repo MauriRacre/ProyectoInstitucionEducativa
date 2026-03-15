@@ -106,6 +106,38 @@ router.get("/", async (req, res) => {
       UNION ALL
 
       /* =========================
+        PAGOS EVENTOS
+      =========================*/
+      SELECT 
+        p.id,
+        DATE(p.fecha) AS dateISO,
+        TIME(p.fecha) AS time,
+        CASE 
+          WHEN p.reversed = 1 OR p.monto < 0 THEN 'REVERSAL'
+          WHEN p.monto = 0 AND p.descuento > 0 THEN 'DISCOUNT'
+          ELSE 'PAYMENT'
+        END AS type,
+        p.responsable AS staff,
+        t.nombre AS tutor,
+        e.nombre AS student,
+        e.grado AS grade,
+        e.paralelo AS parallel,
+        CONCAT(
+          'Evento ',
+          ev.evento
+        ) AS concept,
+        p.nota AS note,
+        (p.monto + p.descuento) AS amount
+      FROM pagos p
+      JOIN estudiante_servicio es
+          ON es.id = p.referencia_id
+          AND p.tipo = 'SERVICIO'
+      JOIN eventos ev ON ev.id = es.evento_id
+      JOIN estudiantes e ON e.id = es.estudiante_id
+      JOIN tutores t ON t.id = e.tutor_id
+      UNION ALL
+
+      /* =========================
          GASTOS
       ==========================*/
       SELECT
@@ -521,6 +553,35 @@ router.get("/search-modificado", async (req, res) => {
         JOIN tutores t ON t.id = e.tutor_id
         WHERE p.tipo = 'SERVICIO'
 
+        UNION ALL
+
+      /* ================= EVENTOS ================= */
+      SELECT 
+        p.id,
+        DATE(p.fecha) AS dateISO,
+        TIME(p.fecha) AS time,
+        CASE 
+          WHEN p.reversed = 1 OR p.monto < 0 THEN 'REVERSAL'
+          WHEN p.monto = 0 AND p.descuento > 0 THEN 'DISCOUNT'
+          ELSE 'PAYMENT'
+        END AS type,
+        p.responsable AS staff,
+        t.nombre AS tutor,
+        e.nombre AS student,
+        e.grado AS grade,
+        e.paralelo AS parallel,
+        CONCAT(
+          'Evento ',
+          ev.evento
+        ) AS concept,
+        p.nota AS note,
+        (p.monto + p.descuento) AS amount
+      FROM pagos p
+      JOIN estudiante_servicio es ON es.id = p.referencia_id
+      JOIN eventos ev ON ev.id = es.evento_id
+      JOIN estudiantes e ON e.id = es.estudiante_id
+      JOIN tutores t ON t.id = e.tutor_id
+      WHERE p.tipo = 'SERVICIO'
         UNION ALL
 
         /* ================= GASTOS ================= */
