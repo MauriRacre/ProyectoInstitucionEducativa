@@ -35,7 +35,6 @@ router.post('/', async (req, res) => {
       return apiError(res, "VALIDATION_ERROR", "Nombre del servicio requerido");
     }
 
-    // ✅ Validación descuento
     if (discount_amount < 0) {
       return apiError(res, "VALIDATION_ERROR", "Descuento inválido");
     }

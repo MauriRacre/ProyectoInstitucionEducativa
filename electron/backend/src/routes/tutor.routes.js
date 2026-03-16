@@ -2,6 +2,73 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const { apiError } = require("../utils/apiError");
+
+router.get("/por-curso", async (req, res) => {
+  try {
+
+    const { grado, paralelo } = req.query;
+
+    if (!grado) {
+      return apiError(res, "VALIDATION_ERROR", "El grado es requerido");
+    }
+
+    let where = `WHERE e.grado = ?`;
+    const params = [grado];
+
+    if (paralelo) {
+      where += ` AND e.paralelo = ?`;
+      params.push(paralelo);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT 
+        t.id AS tutorId,
+        t.nombre AS tutorName,
+        t.telefono AS phone,
+        t.correo AS email,
+        e.id AS studentId,
+        e.nombre AS studentName,
+        e.grado,
+        e.paralelo
+      FROM estudiantes e
+      JOIN tutores t ON t.id = e.tutor_id
+      ${where}
+      ORDER BY e.grado, e.paralelo, e.nombre
+      `,
+      params
+    );
+
+    const result = {};
+
+    for (const r of rows) {
+
+      if (!result[r.tutorId]) {
+        result[r.tutorId] = {
+          id: r.tutorId,
+          name: r.tutorName,
+          phone: r.phone,
+          email: r.email,
+          students: []
+        };
+      }
+
+      result[r.tutorId].students.push({
+        id: r.studentId,
+        name: r.studentName,
+        grade: r.grado,
+        parallel: r.paralelo
+      });
+    }
+
+    res.json(Object.values(result));
+
+  } catch (error) {
+    console.error(error);
+    apiError(res, "BUSINESS_RULE", "Error filtrando por curso");
+  }
+});
+
 router.get("/", async (req, res) => {
   try {
     const {
@@ -516,7 +583,6 @@ router.get("/:id/full", async (req, res) => {
     return apiError(res, "BUSINESS_RULE", "Error al obtener información");
   }
 });
-
 
 router.post("/", async (req, res) => {
   try {
