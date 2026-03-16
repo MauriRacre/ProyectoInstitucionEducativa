@@ -69,8 +69,35 @@ async function updateEstadoServicio(id) {
 
   return concept.total - sum.pagado;
 }
+async function updateEstadoGasto(id) {
 
+  const [[concept]] = await pool.query(
+    `SELECT total FROM gastos_ocacionales WHERE id = ?`,
+    [id]
+  );
+
+  const [[sum]] = await pool.query(
+      `SELECT COALESCE(SUM(monto + descuento),0) AS total
+      FROM pagos
+      WHERE tipo = 'GASTO_OCASIONAL'
+      AND referencia_id = ?
+      AND reversed = 0`,
+      [id]
+    );
+
+    const pendiente = concept.total - sum.total;
+
+    const estado = pendiente <= 0 ? "PAGADO" : "PENDIENTE";
+
+    await pool.query(
+      `UPDATE gastos_ocacionales SET estado = ? WHERE id = ?`,
+      [estado, id]
+    );
+
+    return pendiente;
+  }
 module.exports = {
   updateEstadoMensualidad,
-  updateEstadoServicio
+  updateEstadoServicio,
+  updateEstadoGasto
 };

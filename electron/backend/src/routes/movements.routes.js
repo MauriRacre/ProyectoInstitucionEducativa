@@ -6,7 +6,8 @@ const { apiError } = require("../utils/apiError");
 const { sendPaymentMail } = require("../utils/mailer");
 const {
   updateEstadoMensualidad,
-  updateEstadoServicio
+  updateEstadoServicio,
+  updateEstadoGasto
 } = require("../utils/updateEstado");
 // Registrar movimiento
 router.post("/payment-concepts/:tipo/:conceptId/movements", async (req, res) => {
@@ -20,10 +21,13 @@ router.post("/payment-concepts/:tipo/:conceptId/movements", async (req, res) => 
       discount = 0,
       note = null,
       responsible = null,
-      dateISO
+      dateISO,
+      metodo_pago = "EFECTIVO"
     } = req.body;
 
-    if (!["MENSUALIDAD", "SERVICIO"].includes(tipo)) {
+    /* ================= VALIDACIÓN TIPO ================= */
+
+    if (!["MENSUALIDAD", "SERVICIO", "GASTO_OCASIONAL"].includes(tipo)) {
       return apiError(res, "VALIDATION_ERROR", "Tipo inválido");
     }
 
@@ -31,9 +35,21 @@ router.post("/payment-concepts/:tipo/:conceptId/movements", async (req, res) => 
       return apiError(res, "VALIDATION_ERROR", "Montos inválidos");
     }
 
-    const table = tipo === "MENSUALIDAD"
-      ? "mensualidades"
-      : "estudiante_servicio";
+    /* ================= TABLA SEGÚN TIPO ================= */
+
+    let table;
+
+    if (tipo === "MENSUALIDAD") {
+      table = "mensualidades";
+    } 
+    else if (tipo === "SERVICIO") {
+      table = "estudiante_servicio";
+    } 
+    else {
+      table = "gastos_ocacionales";
+    }
+
+    /* ================= OBTENER CONCEPTO ================= */
 
     const [[concept]] = await pool.query(
       `SELECT total, estado FROM ${table} WHERE id = ?`,
@@ -44,9 +60,11 @@ router.post("/payment-concepts/:tipo/:conceptId/movements", async (req, res) => 
       return apiError(res, "NOT_FOUND", "Concepto no encontrado");
     }
 
-    if (concept.estado === "PAGADO" || concept.estado === "EVENTO_PAGADO" ) {
+    if (concept.estado === "PAGADO" || concept.estado === "EVENTO_PAGADO") {
       return apiError(res, "CONFLICT", "El concepto ya está pagado");
     }
+
+    /* ================= CALCULAR PAGOS PREVIOS ================= */
 
     const [[sum]] = await pool.query(
       `SELECT COALESCE(SUM(monto + descuento),0) AS total
@@ -64,14 +82,17 @@ router.post("/payment-concepts/:tipo/:conceptId/movements", async (req, res) => 
 
     const fecha = dateISO || new Date().toISOString().slice(0, 10);
 
+    /* ================= REGISTRAR PAGO ================= */
+
     const [result] = await pool.query(
       `INSERT INTO pagos 
-       (tipo, referencia_id, fecha, monto, descuento, nota, responsable)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [tipo, id, fecha, paid, discount, note, responsible]
+(tipo, referencia_id, fecha, monto, descuento, nota, responsable, metodo_pago)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [tipo, id, fecha, paid, discount, note, responsible, metodo_pago]
     );
 
-    // Registrar ingreso en movimientos
+    /* ================= REGISTRAR MOVIMIENTO ================= */
+
     if (paid > 0) {
       await pool.query(
         `INSERT INTO movimientos (tipo, concepto, monto, encargado)
@@ -84,17 +105,26 @@ router.post("/payment-concepts/:tipo/:conceptId/movements", async (req, res) => 
       );
     }
 
+    /* ================= ACTUALIZAR ESTADO ================= */
+
     let newPending;
 
     if (tipo === "MENSUALIDAD") {
       newPending = await updateEstadoMensualidad(id);
-    } else {
+    } 
+    else if (tipo === "SERVICIO") {
       newPending = await updateEstadoServicio(id);
     }
+    else {
+      newPending = await updateEstadoGasto(id);
+    }
+
+    /* ================= OBTENER INFO PARA CORREO ================= */
 
     let info = null;
 
     if (tipo === "MENSUALIDAD") {
+
       const [[data]] = await pool.query(
         `SELECT 
             t.correo AS email,
@@ -106,8 +136,12 @@ router.post("/payment-concepts/:tipo/:conceptId/movements", async (req, res) => 
          WHERE m.id = ?`,
         [id]
       );
+
       info = data;
-    } else {
+
+    } 
+    else if (tipo === "SERVICIO") {
+
       const [[data]] = await pool.query(
         `SELECT 
             t.correo AS email,
@@ -121,26 +155,40 @@ router.post("/payment-concepts/:tipo/:conceptId/movements", async (req, res) => 
          WHERE es.id = ?`,
         [id]
       );
+
       info = data;
+
     }
 
     const conceptLabel =
       tipo === "SERVICIO"
         ? `Servicio - ${info?.serviceName || ""}`
+        : tipo === "GASTO_OCASIONAL"
+        ? "Gasto ocasional"
         : "Mensualidad";
 
+    /* ================= ENVÍO DE CORREO ================= */
+
     try {
+
       if (info?.email) {
+
         await sendPaymentMail(info.email, {
           student: info.student,
           concept: conceptLabel,
           paid,
           discount
         });
+
       }
+
     } catch (mailError) {
+
       console.error("Error enviando correo:", mailError.message);
+
     }
+
+    /* ================= RESPUESTA ================= */
 
     res.json({
       movementId: result.insertId,
@@ -149,8 +197,11 @@ router.post("/payment-concepts/:tipo/:conceptId/movements", async (req, res) => 
     });
 
   } catch (error) {
+
     console.error(error);
+
     apiError(res, "BUSINESS_RULE", "No se pudo registrar el pago");
+
   }
 });
 
@@ -236,6 +287,10 @@ router.post("/movements/:movementId/reversal", async (req, res) => {
     conn.release();
   }
 });
+
+
+
+
 
 router.post("/gasto", async (req, res) => {
   try {

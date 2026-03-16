@@ -213,4 +213,237 @@ router.get("/descuentos-anual", async (req, res) => {
 
   }
 });
+
+router.get("/caja/hoy", async (req, res) => {
+  try {
+    const { date } = req.query;
+    const [rows] = await pool.query(`
+      SELECT
+        COUNT(*) AS total_pagos,
+
+        SUM(CASE 
+            WHEN metodo_pago = 'EFECTIVO' AND reversed = 0 
+            THEN monto 
+            ELSE 0 
+        END) AS efectivo,
+
+        SUM(CASE 
+            WHEN metodo_pago = 'QR' AND reversed = 0 
+            THEN monto 
+            ELSE 0 
+        END) AS qr,
+
+        SUM(CASE 
+            WHEN reversed = 0 
+            THEN descuento 
+            ELSE 0 
+        END) AS descuentos,
+
+        SUM(CASE 
+            WHEN reversed = 0 
+            THEN monto 
+            ELSE 0 
+        END) AS total
+
+      FROM pagos
+      WHERE fecha = ?
+    `,[date]);
+
+    res.json(rows[0]);
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      message: "Error obteniendo caja del día"
+    });
+
+  }
+});
+
+router.get("/descuentos-anual", async (req, res) => {
+  try {
+
+    const { year } = req.query;
+
+    if (!year) {
+      return apiError(res, "VALIDATION_ERROR", "Año requerido");
+    }
+
+    const [rows] = await pool.query(`
+      SELECT 
+        MONTH(fecha) AS mes,
+        SUM(descuento) AS total
+      FROM pagos
+      WHERE YEAR(fecha) = ?
+      AND descuento > 0
+      AND reversed = 0
+      GROUP BY MONTH(fecha)
+      ORDER BY mes
+    `, [year]);
+
+    res.json(rows);
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      message: "Error obteniendo descuentos"
+    });
+
+  }
+});
+
+router.get("/caja/total", async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT
+        COUNT(*) AS total_pagos,
+
+        SUM(CASE 
+            WHEN metodo_pago = 'EFECTIVO' AND reversed = 0 
+            THEN monto 
+            ELSE 0 
+        END) AS efectivo,
+
+        SUM(CASE 
+            WHEN metodo_pago = 'QR' AND reversed = 0 
+            THEN monto 
+            ELSE 0 
+        END) AS qr,
+
+        SUM(CASE 
+            WHEN reversed = 0 
+            THEN descuento 
+            ELSE 0 
+        END) AS descuentos,
+
+        SUM(CASE 
+            WHEN reversed = 0 
+            THEN monto 
+            ELSE 0 
+        END) AS total
+
+      FROM pagos
+      WHERE DATE(fecha)<=CURDATE()
+    `);
+
+    res.json(rows[0]);
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      message: "Error obteniendo caja del día"
+    });
+
+  }
+});
+
+router.get("/ingresos-por-curso", async (req, res) => {
+  try {
+
+    const { year } = req.query;
+
+    let yearFilter = "";
+    const params = [];
+
+    if (year) {
+      yearFilter = "AND YEAR(p.fecha) = ?";
+      params.push(year);
+    }
+
+    const [rows] = await pool.query(`
+
+      SELECT 
+        e.grado,
+        e.paralelo,
+        SUM(p.monto) AS total_ingresos
+
+      FROM pagos p
+      JOIN mensualidades m 
+        ON p.referencia_id = m.id
+        AND p.tipo = 'MENSUALIDAD'
+      JOIN estudiantes e 
+        ON e.id = m.estudiante_id
+
+      WHERE p.reversed = 0
+      ${yearFilter}
+
+      GROUP BY e.grado, e.paralelo
+
+      UNION ALL
+
+      SELECT 
+        e.grado,
+        e.paralelo,
+        SUM(p.monto) AS total_ingresos
+
+      FROM pagos p
+      JOIN estudiante_servicio es 
+        ON p.referencia_id = es.id
+        AND p.tipo IN ('SERVICIO','EVENTO')
+      JOIN estudiantes e 
+        ON e.id = es.estudiante_id
+
+      WHERE p.reversed = 0
+      ${yearFilter}
+
+      GROUP BY e.grado, e.paralelo
+
+      UNION ALL
+
+      SELECT
+        e.grado,
+        e.paralelo,
+        SUM(p.monto) AS total_ingresos
+
+      FROM pagos p
+      JOIN gastos_ocacionales g 
+        ON p.referencia_id = g.id
+        AND p.tipo = 'GASTO_OCASIONAL'
+      JOIN estudiantes e 
+        ON e.id = g.estudiante_id
+
+      WHERE p.reversed = 0
+      ${yearFilter}
+
+      GROUP BY e.grado, e.paralelo
+
+    `, [...params, ...params, ...params]);
+
+    /* ================= AGRUPAR RESULTADO FINAL ================= */
+
+    const result = {};
+
+    rows.forEach(row => {
+      const key = `${row.grado}-${row.paralelo}`;
+
+      if (!result[key]) {
+        result[key] = {
+          grado: row.grado,
+          paralelo: row.paralelo,
+          total: 0
+        };
+      }
+
+      result[key].total += Number(row.total_ingresos);
+    });
+
+    res.json(Object.values(result));
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      message: "Error obteniendo reporte"
+    });
+
+  }
+});
+
 module.exports = router;
