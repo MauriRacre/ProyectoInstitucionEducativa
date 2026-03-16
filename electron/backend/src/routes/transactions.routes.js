@@ -401,7 +401,6 @@ router.get("/search", async (req, res) => {
     });
   }
 });
-
 router.get("/search-modificado", async (req, res) => {
   try {
     const {
@@ -419,6 +418,7 @@ router.get("/search-modificado", async (req, res) => {
     const params = [];
 
     /* ================= FILTRO POR TIPO ================= */
+
     if (type === "PAYMENT") {
       whereCombined += "AND type = 'PAYMENT' ";
     }
@@ -436,6 +436,7 @@ router.get("/search-modificado", async (req, res) => {
     }
 
     /* ================= FILTRO POR FECHA ================= */
+
     if (from) {
       whereCombined += "AND dateISO >= ? ";
       params.push(from);
@@ -446,7 +447,8 @@ router.get("/search-modificado", async (req, res) => {
       params.push(to);
     }
 
-    /* ================= BUSCADOR GENERAL ================= */
+    /* ================= BUSCADOR ================= */
+
     if (search) {
       whereCombined += `
         AND (
@@ -456,106 +458,19 @@ router.get("/search-modificado", async (req, res) => {
           OR concept LIKE ?
         )
       `;
-      const searchValue = `%${search}%`;
-      params.push(searchValue, searchValue, searchValue, searchValue);
+
+      const value = `%${search}%`;
+      params.push(value, value, value, value);
     }
 
     /* ================= QUERY BASE ================= */
+
     const baseQuery = `
+
       SELECT * FROM (
 
-        /* ================= MENSUALIDADES ================= */
-        SELECT 
-          p.id,
-          DATE(p.fecha) AS dateISO,
-          TIME(p.fecha) AS time,
-          CASE 
-            WHEN p.reversed = 1 OR p.monto < 0 THEN 'REVERSAL'
-            WHEN p.monto = 0 AND p.descuento > 0 THEN 'DISCOUNT'
-            ELSE 'PAYMENT'
-          END AS type,
-          p.responsable AS staff,
-          t.nombre AS tutor,
-          e.nombre AS student,
-          e.grado AS grade,
-          e.paralelo AS parallel,
-          CONCAT(
-            'Mensualidad ',
-            CASE m.mes
-              WHEN 1 THEN 'enero'
-              WHEN 2 THEN 'febrero'
-              WHEN 3 THEN 'marzo'
-              WHEN 4 THEN 'abril'
-              WHEN 5 THEN 'mayo'
-              WHEN 6 THEN 'junio'
-              WHEN 7 THEN 'julio'
-              WHEN 8 THEN 'agosto'
-              WHEN 9 THEN 'septiembre'
-              WHEN 10 THEN 'octubre'
-              WHEN 11 THEN 'noviembre'
-              WHEN 12 THEN 'diciembre'
-            END,
-            ' ',
-            m.anio
-          ) AS concept,
-          p.nota AS note,
-          (p.monto + p.descuento) AS amount
-        FROM pagos p
-        JOIN mensualidades m ON m.id = p.referencia_id
-        JOIN estudiantes e ON e.id = m.estudiante_id
-        JOIN tutores t ON t.id = e.tutor_id
-        WHERE p.tipo = 'MENSUALIDAD'
+      /* ================= MENSUALIDADES ================= */
 
-        UNION ALL
-
-        /* ================= SERVICIOS ================= */
-        SELECT 
-          p.id,
-          DATE(p.fecha) AS dateISO,
-          TIME(p.fecha) AS time,
-          CASE 
-            WHEN p.reversed = 1 OR p.monto < 0 THEN 'REVERSAL'
-            WHEN p.monto = 0 AND p.descuento > 0 THEN 'DISCOUNT'
-            ELSE 'PAYMENT'
-          END AS type,
-          p.responsable AS staff,
-          t.nombre AS tutor,
-          e.nombre AS student,
-          e.grado AS grade,
-          e.paralelo AS parallel,
-          CONCAT(
-            'Servicio ',
-            s.nombre,
-            ' ',
-            CASE es.mes
-              WHEN 1 THEN 'enero'
-              WHEN 2 THEN 'febrero'
-              WHEN 3 THEN 'marzo'
-              WHEN 4 THEN 'abril'
-              WHEN 5 THEN 'mayo'
-              WHEN 6 THEN 'junio'
-              WHEN 7 THEN 'julio'
-              WHEN 8 THEN 'agosto'
-              WHEN 9 THEN 'septiembre'
-              WHEN 10 THEN 'octubre'
-              WHEN 11 THEN 'noviembre'
-              WHEN 12 THEN 'diciembre'
-            END,
-            ' ',
-            es.anio
-          ) AS concept,
-          p.nota AS note,
-          (p.monto + p.descuento) AS amount
-        FROM pagos p
-        JOIN estudiante_servicio es ON es.id = p.referencia_id
-        JOIN servicios s ON s.id = es.servicio_id
-        JOIN estudiantes e ON e.id = es.estudiante_id
-        JOIN tutores t ON t.id = e.tutor_id
-        WHERE p.tipo = 'SERVICIO'
-
-        UNION ALL
-
-      /* ================= EVENTOS ================= */
       SELECT 
         p.id,
         DATE(p.fecha) AS dateISO,
@@ -565,47 +480,144 @@ router.get("/search-modificado", async (req, res) => {
           WHEN p.monto = 0 AND p.descuento > 0 THEN 'DISCOUNT'
           ELSE 'PAYMENT'
         END AS type,
+        p.metodo_pago AS paymentMethod,
         p.responsable AS staff,
         t.nombre AS tutor,
         e.nombre AS student,
         e.grado AS grade,
         e.paralelo AS parallel,
         CONCAT(
-          'Evento ',
-          ev.evento
+          'Mensualidad ',
+          CASE m.mes
+            WHEN 1 THEN 'enero'
+            WHEN 2 THEN 'febrero'
+            WHEN 3 THEN 'marzo'
+            WHEN 4 THEN 'abril'
+            WHEN 5 THEN 'mayo'
+            WHEN 6 THEN 'junio'
+            WHEN 7 THEN 'julio'
+            WHEN 8 THEN 'agosto'
+            WHEN 9 THEN 'septiembre'
+            WHEN 10 THEN 'octubre'
+            WHEN 11 THEN 'noviembre'
+            WHEN 12 THEN 'diciembre'
+          END,
+          ' ',
+          m.anio
+        ) AS concept,
+        p.nota AS note,
+        (p.monto + p.descuento) AS amount
+      FROM pagos p
+      JOIN mensualidades m ON m.id = p.referencia_id
+      JOIN estudiantes e ON e.id = m.estudiante_id
+      JOIN tutores t ON t.id = e.tutor_id
+      WHERE p.tipo = 'MENSUALIDAD'
+
+      UNION ALL
+
+      /* ================= SERVICIOS ================= */
+
+      SELECT 
+        p.id,
+        DATE(p.fecha) AS dateISO,
+        TIME(p.fecha) AS time,
+        CASE 
+          WHEN p.reversed = 1 OR p.monto < 0 THEN 'REVERSAL'
+          WHEN p.monto = 0 AND p.descuento > 0 THEN 'DISCOUNT'
+          ELSE 'PAYMENT'
+        END AS type,
+        p.metodo_pago AS paymentMethod,
+        p.responsable AS staff,
+        t.nombre AS tutor,
+        e.nombre AS student,
+        e.grado AS grade,
+        e.paralelo AS parallel,
+        CONCAT(
+          'Servicio ',
+          s.nombre,
+          ' ',
+          CASE es.mes
+            WHEN 1 THEN 'enero'
+            WHEN 2 THEN 'febrero'
+            WHEN 3 THEN 'marzo'
+            WHEN 4 THEN 'abril'
+            WHEN 5 THEN 'mayo'
+            WHEN 6 THEN 'junio'
+            WHEN 7 THEN 'julio'
+            WHEN 8 THEN 'agosto'
+            WHEN 9 THEN 'septiembre'
+            WHEN 10 THEN 'octubre'
+            WHEN 11 THEN 'noviembre'
+            WHEN 12 THEN 'diciembre'
+          END,
+          ' ',
+          es.anio
         ) AS concept,
         p.nota AS note,
         (p.monto + p.descuento) AS amount
       FROM pagos p
       JOIN estudiante_servicio es ON es.id = p.referencia_id
-      JOIN eventos ev ON ev.id = es.evento_id
+      JOIN servicios s ON s.id = es.servicio_id
       JOIN estudiantes e ON e.id = es.estudiante_id
       JOIN tutores t ON t.id = e.tutor_id
       WHERE p.tipo = 'SERVICIO'
-        UNION ALL
 
-        /* ================= GASTOS ================= */
-        SELECT
-          mov.id,
-          DATE(mov.fecha) AS dateISO,
-          TIME(mov.fecha) AS time,
-          'EXPENSE' AS type,
-          mov.encargado AS staff,
-          NULL AS tutor,
-          NULL AS student,
-          NULL AS grade,
-          NULL AS parallel,
-          mov.concepto AS concept,
-          NULL AS note,
-          mov.monto AS amount
-        FROM movimientos mov
-        WHERE mov.tipo = 'GASTO'
+      UNION ALL
+
+      /* ================= GASTOS OCASIONALES ================= */
+
+      SELECT
+        p.id,
+        DATE(p.fecha) AS dateISO,
+        TIME(p.fecha) AS time,
+        CASE 
+          WHEN p.reversed = 1 OR p.monto < 0 THEN 'REVERSAL'
+          WHEN p.monto = 0 AND p.descuento > 0 THEN 'DISCOUNT'
+          ELSE 'PAYMENT'
+        END AS type,
+        p.metodo_pago AS paymentMethod,
+        p.responsable AS staff,
+        t.nombre AS tutor,
+        e.nombre AS student,
+        e.grado AS grade,
+        e.paralelo AS parallel,
+        CONCAT('Gasto ocasional ', g.concepto) AS concept,
+        p.nota AS note,
+        (p.monto + p.descuento) AS amount
+      FROM pagos p
+      JOIN gastos_ocacionales g ON g.id = p.referencia_id
+      JOIN estudiantes e ON e.id = g.estudiante_id
+      JOIN tutores t ON t.id = e.tutor_id
+      WHERE p.tipo = 'GASTO_OCASIONAL'
+
+      UNION ALL
+
+      /* ================= GASTOS DEL SISTEMA ================= */
+
+      SELECT
+        mov.id,
+        DATE(mov.fecha) AS dateISO,
+        TIME(mov.fecha) AS time,
+        'EXPENSE' AS type,
+        NULL AS paymentMethod,
+        mov.encargado AS staff,
+        NULL AS tutor,
+        NULL AS student,
+        NULL AS grade,
+        NULL AS parallel,
+        mov.concepto AS concept,
+        NULL AS note,
+        mov.monto AS amount
+      FROM movimientos mov
+      WHERE mov.tipo = 'GASTO'
 
       ) AS combined
+
       ${whereCombined}
     `;
 
     /* ================= TOTAL ================= */
+
     const [totalResult] = await pool.query(
       `SELECT COUNT(*) as total FROM (${baseQuery}) as sub`,
       params
@@ -614,6 +626,7 @@ router.get("/search-modificado", async (req, res) => {
     const total = totalResult[0].total;
 
     /* ================= PAGINACIÓN ================= */
+
     const [rows] = await pool.query(
       `${baseQuery}
        ORDER BY dateISO DESC, time DESC
@@ -633,7 +646,6 @@ router.get("/search-modificado", async (req, res) => {
     res.status(500).json({ message: "Error interno del servidor" });
   }
 });
-
 
 // ingresos mes
 router.get("/ingresos-mes", async (req, res) => {
