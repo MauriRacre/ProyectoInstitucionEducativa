@@ -302,28 +302,56 @@ export class HistoryPage implements OnInit {
     doc.setFontSize(16);
     doc.text('HISTORIAL DE TRANSACCIONES', pageWidth / 2, 60, { align: 'center' });
 
-    
+    /* =========================
+      CALCULOS
+    ========================= */
 
-    const totalPagos = data
-      .filter(x => x.type === 'PAYMENT')
+    const pagos = data.filter(x => x.type === 'PAYMENT');
+
+    const totalPagos = pagos.reduce((sum, x) => sum + Number(x.amount ?? 0), 0);
+
+    const pagosQR = pagos
+      .filter(x => x.paymentMethod === 'qr')
       .reduce((sum, x) => sum + Number(x.amount ?? 0), 0);
 
-    const totalReversiones = data
-      .filter(x => x.type === 'REVERSAL')
-      .length;
+    const pagosEfectivo = pagos
+      .filter(x => x.paymentMethod === 'cash')
+      .reduce((sum, x) => sum + Number(x.amount ?? 0), 0);
+
+    const totalDescuentos = data
+      .filter(x => x.discount)
+      .reduce((sum, x) => sum + Number(x.discount ?? 0), 0);
+
+    /* =========================
+      CAJA DE RESUMEN
+    ========================= */
 
     doc.setDrawColor(220);
     doc.setFillColor(245, 247, 250);
     doc.roundedRect(14, 68, pageWidth - 28, 20, 3, 3, 'FD');
-    
-    doc.setFontSize(11);
+
+    const col1 = 25;
+    const col2 = pageWidth * 0.35;
+    const col3 = pageWidth * 0.60;
+    const col4 = pageWidth * 0.82;
+
+    const yTitle = 77;
+    const yValue = 84;
+
     doc.setFont('helvetica', 'bold');
-    doc.text(`Total Pagos:`, 20, 80);
-    doc.text(`Total Reversiones:`, pageWidth - 90, 80);
+    doc.setFontSize(11);
+
+    doc.text('Total Pagos', col1, yTitle);
+    doc.text('Pagos QR', col2, yTitle);
+    doc.text('Pagos Efectivo', col3, yTitle);
+    doc.text('Total Descuentos', col4, yTitle);
 
     doc.setFont('helvetica', 'normal');
-    doc.text(`Bs. ${totalPagos.toFixed(2)}`, 45, 80);
-    doc.text(`${totalReversiones}`, pageWidth - 45, 80);
+
+    doc.text(`Bs. ${totalPagos.toFixed(2)}`, col1, yValue);
+    doc.text(`Bs. ${totalPagos.toFixed(2)}`, col2, yValue);
+    doc.text(`Bs. ${totalPagos.toFixed(2)}`, col3, yValue);
+    doc.text(`Bs. ${totalDescuentos.toFixed(2)}`, col4, yValue);
 
     const rows: string[][] = data.map(x => {
       const amount = Number(x.amount ?? 0);
@@ -335,6 +363,7 @@ export class HistoryPage implements OnInit {
         x.tutor ?? '',
         x.student ?? '',
         x.concept ?? '',
+        'Efectivo',
         `${this.amountPrefix(x.type) ?? ''} Bs. ${amount.toFixed(2)}`
       ];
     });

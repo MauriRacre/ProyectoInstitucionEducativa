@@ -86,7 +86,7 @@
         <div class="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-end">
 
           <!-- Search -->
-          <div class="lg:col-span-7">
+          <div class="lg:col-span-5">
             <label class="text-xs font-semibold text-gray-600">BÚSQUEDA</label>
             <div class="mt-2 relative">
               <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
@@ -196,6 +196,10 @@
                 <td class="px-5 py-4 max-w-xs break-words">
                   <div class="font-semibold text-gray-900">{{ t.concept }}</div>
                   <div class="text-xs text-gray-500" *ngIf="t.note">{{ t.note }}</div>
+                </td>
+
+                <td class="px-5 py-4 max-w-xs break-words">
+                  <div class="font-semibold text-gray-900">Efectivo</div>
                 </td>
 
                 <td class="px-5 py-4 text-right">

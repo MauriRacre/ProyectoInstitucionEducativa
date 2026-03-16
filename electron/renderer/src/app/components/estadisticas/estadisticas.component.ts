@@ -59,7 +59,12 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
     private inscritosChart?: Chart;
     private ingresosCursosChart?: Chart;
     private descuentosChart?: Chart;
+    ingresosQrHoy = 0;
+    ingresosEfectivoHoy = 0;
+    ingresosHoy = 0;
 
+    ingresosQrAnual = 0;
+    ingresosEfectivoAnual = 0;
     private viewReady = false;
 
     // =============================

@@ -17,6 +17,7 @@ import { ReciboService } from '../../core/services/recibo.service';
 import { StudentService } from '../../core/services/estudiantes.service';
 import { InscriptionService } from '../../core/services/inscription.service';
 import { Router } from '@angular/router';
+import { ModalMulta } from '../../components/multa/multa.component';
 
 type Parallel = 'A' | 'B' | 'C';
 type Grade = 'Kinder' | 'Pre-Kinder' | '1er' | '2do' | '3ro' | '4to' | '5to' | '6to';
@@ -90,7 +91,7 @@ interface PayViewApi {
 @Component({
     selector: 'app-pay-page',
     standalone: true,
-    imports: [CommonModule, FormsModule, ModalAbono, ModalRegister, RouterModule
+    imports: [CommonModule, FormsModule, ModalAbono, ModalRegister, RouterModule, ModalMulta
     ],
     templateUrl: './pay.page.html'
 })
@@ -125,6 +126,7 @@ export class PayPage implements OnInit{
   pageSize = 6;
   childPage: Record<number, number>={};
   idTutor = 0;
+  paymentMethod: 'cash' | 'qr' = 'cash';
   ngOnInit(): void {
     this.route.paramMap
     .subscribe(params => {
@@ -465,7 +467,7 @@ export class PayPage implements OnInit{
       this.toast.warning('Selecciona al menos un concepto con monto válido.');
       return;
     }
-    
+    const metodoPago = this.paymentMethod;
     const movements = [];
     const recibosMap = new Map<number, {
       childId: number,
@@ -491,7 +493,8 @@ export class PayPage implements OnInit{
         dto: {
           paid,
           discount,
-          responsible: this.currentUserName
+          responsible: this.currentUserName,
+          paymentMethod: metodoPago
         }
       });
 
@@ -526,7 +529,7 @@ export class PayPage implements OnInit{
     this.paymentApi.registerMultipleMovements(movements)
       .subscribe({
         next: () => {
-          this.facturaPdf(recibos);
+          this.facturaPdf(recibos, metodoPago);
           this.toast.success('Pago registrado correctamente');
           this.selectedIds.clear();
           this.draftDiscount = {};
@@ -697,7 +700,8 @@ export class PayPage implements OnInit{
       childId: number,
       conceptos: { concepto: string, monto: number }[],
       descuento: number,
-    }[]
+    }[],
+    paymentMethod: 'cash' | 'qr'
   ) {
     console.log(movimientos, 'factura');
     if (!movimientos.length) {
@@ -713,7 +717,7 @@ export class PayPage implements OnInit{
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const logoBase64 = await this.loadImage('assets/images/logo.png');
-
+    const metodoPagoTexto = paymentMethod === 'qr' ? 'QR' : 'Efectivo';
     for (let i = 0; i < movimientos.length; i++) {
 
       if (i > 0) doc.addPage();
@@ -769,7 +773,7 @@ export class PayPage implements OnInit{
       );
 
       doc.text(
-        `Forma de pago: Efectivo   |   Recibido por: ${this.currentUserName}`,
+        `Forma de pago: ${metodoPagoTexto}   |   Recibido por: ${this.currentUserName}`,
         pageWidth / 2,
         tableStartY - 6,
         { align: 'center' }
@@ -927,6 +931,7 @@ export class PayPage implements OnInit{
     subtotal: number;
     total: number;
     destino: DestinoPago;
+    paymentMethod?: 'cash' | 'qr';
   }) {
 
     const year = new Date().getFullYear();
@@ -1041,7 +1046,7 @@ export class PayPage implements OnInit{
         conceptos: conceptosFactura,
         descuento: descuentoTotal
       });
-      await this.facturaPdf(movimientosFactura);
+      await this.facturaPdf(movimientosFactura, payload.paymentMethod ?? 'cash');
     }
     this.toast.success('Cargo registrado correctamente');
     this.fetchPayView(this.idTutor);
@@ -1052,8 +1057,14 @@ export class PayPage implements OnInit{
       this.isProcessing = false;
     }
   }
-
-  
+  /***Modal multa */
+  showModalMulta = false;
+  openModalMulta(){
+    this.showModalMulta = true;
+  }
+  closeModalMulta(){
+    this.showModalMulta = false;
+  }
   /** ModalEdit */
   showModalEdit = false;
   mode: 'create' | 'edit' = 'edit';
