@@ -45,9 +45,11 @@ export class HistoryPage implements OnInit {
   ingresosQrHoy = 0;
   ingresosEfectivoHoy = 0;
   ingresosHoy = 0;
+
   ingresosQrAnual = 0;
   ingresosEfectivoAnual = 0;
-
+  ingresoTotal = 0;
+  descuentoTotal = 0;
   /** TABS VARIABLES */
   selectedTab: TabKey = 'transacciones';
   isLoading = false;
@@ -226,6 +228,8 @@ export class HistoryPage implements OnInit {
       this.ingresosHoy = Number(res.cajaHoy.total || 0);
       this.ingresosQrAnual = Number(res.cajaTotal.qr || 0);
       this.ingresosEfectivoAnual = Number(res.cajaTotal.efectivo || 0);
+      this.ingresoTotal = Number(res.cajaTotal.total || 0);
+      this.descuentoTotal = Number(res.cajaTotal.descuentos || 0);
       console.log(res);
     });
   }
@@ -293,26 +297,6 @@ export class HistoryPage implements OnInit {
     doc.text('HISTORIAL DE TRANSACCIONES', pageWidth / 2, 60, { align: 'center' });
 
     /* =========================
-      CALCULOS
-    ========================= */
-
-    const pagos = data.filter(x => x.type === 'PAYMENT');
-
-    const totalPagos = pagos.reduce((sum, x) => sum + Number(x.amount ?? 0), 0);
-
-    const pagosQR = pagos
-      .filter(x => x.paymentMethod === 'QR')
-      .reduce((sum, x) => sum + Number(x.amount ?? 0), 0);
-
-    const pagosEfectivo = pagos
-      .filter(x => x.paymentMethod === 'EFECTIVO')
-      .reduce((sum, x) => sum + Number(x.amount ?? 0), 0);
-
-    const totalDescuentos = data
-      .filter(x => x.discount)
-      .reduce((sum, x) => sum + Number(x.discount ?? 0), 0);
-
-    /* =========================
       CAJA DE RESUMEN
     ========================= */
 
@@ -338,10 +322,10 @@ export class HistoryPage implements OnInit {
 
     doc.setFont('helvetica', 'normal');
 
-    doc.text(`Bs. ${totalPagos.toFixed(2)}`, col1, yValue);
-    doc.text(`Bs. ${totalPagos.toFixed(2)}`, col2, yValue);
-    doc.text(`Bs. ${pagosEfectivo.toFixed(2)}`, col3, yValue);
-    doc.text(`Bs. ${totalDescuentos.toFixed(2)}`, col4, yValue);
+    doc.text(`Bs. ${this.ingresoTotal.toFixed(2)}`, col1, yValue);
+    doc.text(`Bs. ${this.ingresosQrAnual.toFixed(2)}`, col2, yValue);
+    doc.text(`Bs. ${this.ingresosEfectivoAnual.toFixed(2)}`, col3, yValue);
+    doc.text(`Bs. ${this.descuentoTotal.toFixed(2)}`, col4, yValue);
 
     const rows: string[][] = data.map(x => {
       const amount = Number(x.amount ?? 0);
@@ -353,7 +337,7 @@ export class HistoryPage implements OnInit {
         x.tutor ?? '',
         x.student ?? '',
         x.concept ?? '',
-        'Efectivo',
+        x.metodo_pago || x.paymentMethod,
         `${this.amountPrefix(x.type) ?? ''} Bs. ${amount.toFixed(2)}`
       ];
     });
