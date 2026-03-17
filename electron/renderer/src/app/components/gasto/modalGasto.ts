@@ -44,7 +44,7 @@ export class GastoModal implements  OnChanges {
         this.form = this.fb.group({
             concept: ['', [Validators.required, Validators.minLength(5), Validators.maxLength(200)]],
             monto: [0, [Validators.required, Validators.min(0.01)]],
-            paymentMethod:['cash', Validators.required]
+            paymentMethod:['EFECTIVO', Validators.required]
         });
     }
 
@@ -57,7 +57,7 @@ export class GastoModal implements  OnChanges {
         this.form.reset({
             concept: '',
             monto: 0,
-            paymentMethod: 'cash'
+            paymentMethod: 'EFECTIVO'
         });
         this.loading = false;
         }

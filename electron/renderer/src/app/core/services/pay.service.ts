@@ -11,7 +11,7 @@ export interface CreateMensualidadDTO {
     base_amount?: number;
     extra_amount?: number;
     discount_amount?: number;
-    tipo?: "MENSUALIDAD" | "SERVICIO";
+    tipo?: "MENSUALIDAD" | "SERVICIO" | "GASTO_OCASIONAL";
     nombre_servicio?: string | null;
 }
 
@@ -23,6 +23,18 @@ export interface MovementDTO {
     dateISO?: string;
     metodo_pago: string;
 }
+
+export interface CreateGastoOcasionalDto {
+    estudiante_id?: number | null;
+    concepto: string;
+    descripcion?: string | null;
+    fecha: string; 
+    base_amount: number;
+    extra_amount?: number;
+    discount_amount?: number;
+    encargado?: string | null;
+}
+
 
 @Injectable({
     providedIn: 'root'
@@ -42,10 +54,15 @@ export class PaymentService {
             dto
         );
     }
-
-  // ===============================
-  // Registrar movimiento
-  // ===============================
+    // ===============================
+    // Crear gasto
+    // ===============================
+    createGasto(data: CreateGastoOcasionalDto): Observable<any> {
+        return this.http.post<any>(`${this.baseUrl}/api/gastos`, data);
+    }
+    // ===============================
+    // Registrar movimiento
+    // ===============================
     registerMovement(
         conceptId: number,
         tipo: string,

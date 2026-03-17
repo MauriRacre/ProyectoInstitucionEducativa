@@ -30,15 +30,9 @@ export class ModalMulta {
   loading = false;
   errorMsg = '';
 
-  paymentMethod: 'cash' | 'qr' = 'cash';
+  paymentMethod: 'EFECTIVO' | 'QR' = 'EFECTIVO';
 
   form!: FormGroup;
-
-  meses: string[] = [
-    'Enero', 'Febrero', 'Marzo', 'Abril',
-    'Mayo', 'Junio', 'Julio', 'Agosto',
-    'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-  ];
 
   constructor(private fb: FormBuilder) {
 
@@ -52,7 +46,6 @@ export class ModalMulta {
             Validators.maxLength(100)
             ]
         ],
-        meses: [<string[]>[], Validators.required],
         monto: [0, [Validators.required, Validators.min(0)]],
         destino: ['PAGAR_AHORA' as DestinoPago, Validators.required],
         categoria: ['MULTA']
@@ -71,7 +64,6 @@ export class ModalMulta {
       this.form.reset({
         estudiante: '',
         concepto: '',
-        meses: [],
         monto: 0,
         destino: 'PAGAR_AHORA',
         categoria: 'MULTA'
@@ -90,14 +82,6 @@ export class ModalMulta {
     return !!c && c.touched && c.invalid;
   }
 
-  get selectedMeses(): string[] {
-    return (this.form.get('meses')?.value ?? []) as string[];
-  }
-
-  get countMeses(): number {
-    return this.selectedMeses.length;
-  }
-
   private toNumber(v: any): number {
     const n = Number(v);
     return Number.isFinite(n) ? n : 0;
@@ -107,16 +91,8 @@ export class ModalMulta {
     return this.toNumber(this.form.get('monto')?.value);
   }
 
-  get subtotal(): number {
-    return this.countMeses * this.montoUnitario;
-  }
-
   get total(): number {
-    return this.subtotal;
-  }
-
-  get descuentoExcedeSubtotal(): boolean {
-    return false;
+    return this.montoUnitario;
   }
 
   get estudianteNombre(): string {
@@ -127,53 +103,6 @@ export class ModalMulta {
     return encontrado?.name ?? '';
 
   }
-
-  /* =======================
-  Meses
-  ======================= */
-
-  isMesSelected(mes: string): boolean {
-    return this.selectedMeses.includes(mes);
-  }
-
-  isMesBloqueado(mes: string): boolean {
-    return false;
-  }
-
-  toggleMes(mes: string): void {
-
-    const current = new Set(this.selectedMeses);
-
-    if (current.has(mes)) current.delete(mes);
-    else current.add(mes);
-
-    const ordered = this.meses.filter(m => current.has(m));
-
-    this.form.patchValue({ meses: ordered });
-
-    this.form.get('meses')?.markAsTouched();
-    this.form.get('meses')?.updateValueAndValidity();
-
-  }
-
-  selectAllMeses(): void {
-
-    this.form.patchValue({ meses: [...this.meses] });
-
-    this.form.get('meses')?.markAsTouched();
-    this.form.get('meses')?.updateValueAndValidity();
-
-  }
-
-  clearMeses(): void {
-
-    this.form.patchValue({ meses: [] });
-
-    this.form.get('meses')?.markAsTouched();
-    this.form.get('meses')?.updateValueAndValidity();
-
-  }
-
   /* =======================
   Eventos
   ======================= */
@@ -207,7 +136,6 @@ export class ModalMulta {
     this.form.reset({
       estudiante: '',
       concepto: '',
-      meses: [],
       monto: 0,
       destino: 'PAGAR_AHORA',
       categoria: 'MULTA'
@@ -234,7 +162,6 @@ export class ModalMulta {
     const v = this.form.getRawValue() as {
       estudiante: number;
       concepto: string;
-      meses: string[];
       monto: number;
       destino: DestinoPago;
       categoria: string;
@@ -244,9 +171,7 @@ export class ModalMulta {
       estudiante: v.estudiante,
       concepto: v.concepto,
       categoria: v.categoria,
-      meses: v.meses,
       montoUnitario: Number(v.monto),
-      subtotal: this.subtotal,
       total: this.total,
       destino: v.destino,
       paymentMethod: this.paymentMethod

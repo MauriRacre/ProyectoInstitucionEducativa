@@ -1078,6 +1078,88 @@ export class PayPage implements OnInit{
   closeModalMulta(){
     this.showModalMulta = false;
   }
+  async onSavedMulta(payload: {
+    estudiante: number;  
+    concepto: string;
+    categoria: string;
+    montoUnitario: number;
+    total: number;
+    destino: DestinoPago;
+    paymentMethod?: 'EFECTIVO' | 'QR';
+  }) {
+
+    const today = new Date();
+    const fecha = today.toISOString().split('T')[0]; 
+    const month = today.getMonth() + 1;
+
+    this.closeModalMulta();
+    this.isProcessing = true;
+
+    const movimientosFactura: {
+      childId: number,
+      conceptos: { concepto: string, monto: number }[],
+      descuento: number,
+    }[] = [];
+
+    try {
+      const created = await firstValueFrom(
+      this.paymentApi.createGasto({
+        estudiante_id: payload.estudiante,
+        concepto: payload.concepto,
+        descripcion: payload.categoria ?? null,
+        fecha,
+        base_amount: payload.montoUnitario,
+        extra_amount: 0,
+        discount_amount: 0,
+        encargado: this.currentUserName ?? null
+      })
+    );
+
+      if (payload.destino === 'PAGAR_AHORA') {
+
+        const conceptId = created?.id;
+
+        if (!conceptId) {
+          throw new Error('No se pudo obtener el id del concepto');
+        }
+
+        await firstValueFrom(
+          this.paymentApi.registerMovement(
+            conceptId,
+            'GASTO_OCASIONAL',
+            {
+              paid: payload.montoUnitario,
+              discount: 0,
+              responsible: this.currentUserName,
+              metodo_pago: payload.paymentMethod ?? 'EFECTIVO'
+            }
+          )
+        );
+
+        movimientosFactura.push({
+          childId: Number(payload.estudiante),
+          conceptos: [{
+            concepto: payload.concepto,
+            monto: payload.montoUnitario
+          }],
+          descuento: 0,
+        });
+        await this.facturaPdf(
+          movimientosFactura,
+          payload.paymentMethod ?? 'EFECTIVO'
+        );
+      }
+
+      this.toast.success('Cargo registrado correctamente');
+      this.fetchPayView(this.idTutor);
+
+    } catch (error) {
+      console.error(error);
+      this.toast.error('Error registrando cargo');
+    } finally { 
+      this.isProcessing = false;
+    }
+  }
   /** ModalEdit */
   showModalEdit = false;
   mode: 'create' | 'edit' = 'edit';

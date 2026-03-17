@@ -758,7 +758,8 @@ export class HistoryPage implements OnInit {
     const payload = {
       encargado: this.currentUserName,
       concepto: data.concept,
-      monto: data.monto
+      monto: data.monto,
+      metodo_pago: data.paymentMethod,
     };
 
     this.txService.createGasto(payload).subscribe({

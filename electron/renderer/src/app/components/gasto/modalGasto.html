@@ -124,8 +124,8 @@
                         <button
                         type="button"
                         class="flex rounded-md px-3 py-2 text-sm font-medium transition w-full justify-center gap-3"
-                        (click)="form.get('paymentMethod')?.setValue('cash')"
-                        [ngClass]="form.get('paymentMethod')?.value === 'cash'
+                        (click)="form.get('paymentMethod')?.setValue('EFECTIVO')"
+                        [ngClass]="form.get('paymentMethod')?.value === 'EFECTIVO'
                             ? 'bg-celeste text-white shadow'
                             : 'text-gray-700 hover:bg-gray-300'"
                         >
@@ -139,8 +139,8 @@
                         <button
                         type="button"
                         class="flex rounded-md px-3 py-2 text-sm font-medium transition w-full justify-center gap-3"
-                        (click)="form.get('paymentMethod')?.setValue('qr')"
-                        [ngClass]="form.get('paymentMethod')?.value === 'qr'
+                        (click)="form.get('paymentMethod')?.setValue('QR')"
+                        [ngClass]="form.get('paymentMethod')?.value === 'QR'
                             ? 'bg-celeste text-white shadow'
                             : 'text-gray-700 hover:bg-gray-300'"
                         >

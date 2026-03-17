@@ -8,6 +8,7 @@ export interface CreateExpenseDTO {
     encargado: string;
     concepto: string;
     monto: number;
+    metodo_pago: string;
 }
 export interface TransactionItem {
     id: number;
@@ -80,7 +81,7 @@ export class TransactionsService {
     /** Nuevo gasto */
     createGasto(dto: CreateExpenseDTO): Observable<{ message: string }> {
         return this.http.post<{ message: string }>(
-            `${this.baseUrl}/api/gasto`,
+            `${this.baseUrl}/api/gasto-salida`,
             dto
         );
     }

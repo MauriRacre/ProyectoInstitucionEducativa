@@ -86,8 +86,8 @@ router.post("/payment-concepts/:tipo/:conceptId/movements", async (req, res) => 
 
     const [result] = await pool.query(
       `INSERT INTO pagos 
-(tipo, referencia_id, fecha, monto, descuento, nota, responsable, metodo_pago)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        (tipo, referencia_id, fecha, monto, descuento, nota, responsable, metodo_pago)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [tipo, id, fecha, paid, discount, note, responsible, metodo_pago]
     );
 
@@ -287,8 +287,6 @@ router.post("/movements/:movementId/reversal", async (req, res) => {
     conn.release();
   }
 });
-
-
 
 router.post("/gasto-salida", async (req, res) => {
   try {
