@@ -21,6 +21,7 @@ export interface MovementDTO {
     note?: string | null;
     responsible?: string | null;
     dateISO?: string;
+    metodo_pago: string;
 }
 
 @Injectable({

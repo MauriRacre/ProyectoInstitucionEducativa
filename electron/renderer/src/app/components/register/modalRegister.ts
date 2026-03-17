@@ -13,11 +13,16 @@ export interface Parent{
         email: string;
         phone: string;
     };
+    period:{
+      year?: number;
+      month?: number;
+    }
     students: Array<{
         id?: number;
         name: string;
         grade: Grade;
         parallel: Parallel;
+        monto: number;
     }>;
 }
 
@@ -79,6 +84,7 @@ export class ModalRegister {
       name: [seed?.name ?? '', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
       grade: [((seed?.grade ?? 'Sala Cuna') as Grade), [Validators.required]],
       parallel: [((seed?.parallel ?? 'A') as Parallel), [Validators.required]],
+      monto: [seed?.monto ?? 0, [Validators.required, Validators.min(0)]]
     });
   }
 
@@ -171,19 +177,29 @@ export class ModalRegister {
       this.markAllTouched();
       return;
     }
-
+    const today = new Date();
     const payload: Parent = {
       parent: {
         name: this.form.value.parent!.name!.trim(),
-        email: this.form.value.parent!.email!.trim(),
+        email: this.form.value.parent!.email!.trim() || '',
         phone: this.form.value.parent!.phone!.trim(),
       },
-      students: (this.form.value.students ?? []).map((s: any) => ({
-        id: s.id,
-        name: (s.name ?? '').trim(),
-        grade: s.grade,
-        parallel: s.parallel,
-      })),
+      period:{
+        year: today.getFullYear(),
+        month: today.getMonth()+1,
+      },
+      students: (this.form.value.students ?? []).map((s: any) => {
+          const student: any = {
+            name: (s.name ?? '').trim(),
+            grade: s.grade,
+            parallel: s.parallel,
+            monto: Number(s.monto ?? 0)
+          };
+
+          if (s.id) student.id = s.id;
+
+          return student;
+        })
       
     };
     console.log(payload);

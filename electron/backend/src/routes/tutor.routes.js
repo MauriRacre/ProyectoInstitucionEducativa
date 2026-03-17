@@ -71,27 +71,62 @@ router.get("/por-curso", async (req, res) => {
 
 router.get("/", async (req, res) => {
   try {
+
     const {
       q = "",
       status = "ALL",
+      concepto = null,
       page = 1,
       pageSize = 10
     } = req.query;
 
     const limit = Number(pageSize);
     const offset = (Number(page) - 1) * limit;
-    const search = `%${q}%`;
 
-    let where = `
-      WHERE (
-        t.nombre LIKE ?
-        OR t.correo LIKE ?
-        OR t.telefono LIKE ?
-        OR e.nombre LIKE ?
-      )
-    `;
+    /* ---------------- PARSE CONCEPTO ---------------- */
 
-    const params = [search, search, search, search];
+    let grado = null;
+    let paralelo = null;
+
+    if (concepto) {
+      const parts = concepto.trim().split(" ");
+      grado = parts[0] ?? null;
+      paralelo = parts[1] ?? null;
+    }
+
+    /* ---------------- FILTROS DINÁMICOS ---------------- */
+
+    const filters = [];
+    const params = [];
+
+    if (q) {
+      const search = `%${q}%`;
+      filters.push(`
+        (
+          t.nombre LIKE ?
+          OR t.correo LIKE ?
+          OR t.telefono LIKE ?
+          OR e.nombre LIKE ?
+        )
+      `);
+      params.push(search, search, search, search);
+    }
+
+    if (grado) {
+      filters.push(`e.grado = ?`);
+      params.push(grado);
+    }
+
+    if (paralelo) {
+      filters.push(`e.paralelo = ?`);
+      params.push(paralelo);
+    }
+
+    const where = filters.length
+      ? `WHERE ${filters.join(" AND ")}`
+      : "";
+
+    /* ---------------- QUERY BASE ---------------- */
 
     const baseQuery = `
       SELECT
@@ -100,82 +135,87 @@ router.get("/", async (req, res) => {
         t.correo AS email,
         t.telefono AS phone,
         GROUP_CONCAT(DISTINCT e.nombre SEPARATOR '||') AS students,
-        /* BALANCE CALCULADO */
+
         (
-        /* TOTAL PAGADO */
-        COALESCE((
-          SELECT SUM(p.monto + p.descuento)
-          FROM pagos p
-          JOIN estudiantes e2 ON (
-            (p.tipo = 'MENSUALIDAD' AND EXISTS (
-                SELECT 1 FROM mensualidades m2 
-                WHERE m2.id = p.referencia_id 
+          COALESCE((
+            SELECT SUM(p.monto + p.descuento)
+            FROM pagos p
+            JOIN estudiantes e2 ON (
+              (p.tipo = 'MENSUALIDAD' AND EXISTS (
+                SELECT 1 FROM mensualidades m2
+                WHERE m2.id = p.referencia_id
                 AND m2.estudiante_id = e2.id
-            ))
-            OR
-            (p.tipo = 'SERVICIO' AND EXISTS (
-                SELECT 1 FROM estudiante_servicio es2 
-                WHERE es2.id = p.referencia_id 
+              ))
+              OR
+              (p.tipo = 'SERVICIO' AND EXISTS (
+                SELECT 1 FROM estudiante_servicio es2
+                WHERE es2.id = p.referencia_id
                 AND es2.estudiante_id = e2.id
-            ))
-          )
-          WHERE e2.tutor_id = t.id
-            /*AND p.reversed = 0*/
-        ),0)
-
-        -
-
-        /* TOTAL DEUDA */
-        (
-          COALESCE((
-            SELECT SUM(m2.total)
-            FROM mensualidades m2
-            JOIN estudiantes e3 ON e3.id = m2.estudiante_id
-            WHERE e3.tutor_id = t.id
+              ))
+            )
+            WHERE e2.tutor_id = t.id
           ),0)
 
-          +
+          -
 
-          COALESCE((
-            SELECT SUM(es2.total)
-            FROM estudiante_servicio es2
-            JOIN estudiantes e4 ON e4.id = es2.estudiante_id
-            WHERE e4.tutor_id = t.id
+          (
+            COALESCE((
+              SELECT SUM(m2.total)
+              FROM mensualidades m2
+              JOIN estudiantes e3 ON e3.id = m2.estudiante_id
+              WHERE e3.tutor_id = t.id
+            ),0)
+
+            +
+
+            COALESCE((
+              SELECT SUM(es2.total)
+              FROM estudiante_servicio es2
+              JOIN estudiantes e4 ON e4.id = es2.estudiante_id
+              WHERE e4.tutor_id = t.id
               AND es2.estado != 'CANCELADO'
-          ),0)
-        )
-
-      ) AS balance
+            ),0)
+          )
+        ) AS balance
 
       FROM tutores t
       LEFT JOIN estudiantes e ON e.tutor_id = t.id
       LEFT JOIN mensualidades m ON m.estudiante_id = e.id
-      LEFT JOIN estudiante_servicio es ON es.estudiante_id = e.id AND es.estado != 'CANCELADO'
+      LEFT JOIN estudiante_servicio es 
+        ON es.estudiante_id = e.id AND es.estado != 'CANCELADO'
       LEFT JOIN pagos p 
         ON (
           (p.tipo = 'MENSUALIDAD' AND p.referencia_id = m.id)
           OR
           (p.tipo = 'SERVICIO' AND p.referencia_id = es.id)
         )
+
       ${where}
+
       GROUP BY t.id
     `;
 
+    /* ---------------- FILTRO DE BALANCE ---------------- */
+
     let having = "";
+
     if (status === "DEBT") {
       having = "HAVING balance < 0";
     }
+
     if (status === "OK") {
       having = "HAVING balance >= 0";
     }
 
-    // TOTAL REAL
+    /* ---------------- TOTAL ---------------- */
+
     const [[{ total }]] = await pool.query(
       `SELECT COUNT(*) as total FROM (${baseQuery} ${having}) as sub`,
       params
     );
 
-    // DATA
+    /* ---------------- DATA ---------------- */
+
     const [rows] = await pool.query(
       `
       SELECT * FROM (${baseQuery} ${having}) as sub
@@ -184,12 +224,14 @@ router.get("/", async (req, res) => {
       `,
       [...params, limit, offset]
     );
+
+    /* ---------------- FORMATEO ---------------- */
+
     const formatted = rows.map(r => ({
       ...r,
-      students: r.students
-        ? r.students.split('||')
-        : []
+      students: r.students ? r.students.split("||") : []
     }));
+
     res.json({
       items: formatted,
       page: Number(page),
@@ -585,74 +627,223 @@ router.get("/:id/full", async (req, res) => {
 });
 
 router.post("/", async (req, res) => {
+
+  const connection = await pool.getConnection();
+
   try {
-    const { parent, students } = req.body;
+
+    const { parent, students, period } = req.body;
+
     if (!parent?.name || !parent?.phone) {
       return apiError(res, "VALIDATION_ERROR", "Nombre y teléfono son requeridos");
     }
 
-    const [resultTutor] = await pool.query(
+    if (!period) {
+      return apiError(res, "VALIDATION_ERROR", "Periodo requerido");
+    }
+
+    const { year, month } = period;
+
+    await connection.beginTransaction();
+
+    /* ---------- CREAR TUTOR ---------- */
+
+    const [resultTutor] = await connection.query(
       `INSERT INTO tutores (nombre, correo, telefono)
        VALUES (?, ?, ?)`,
-      [parent.name, parent.email || null, parent.phone]
+      [
+        parent.name,
+        parent.email || null,
+        parent.phone
+      ]
     );
 
     const tutorId = resultTutor.insertId;
 
+    /* ---------- CREAR ESTUDIANTES ---------- */
+
     for (const st of students) {
-      await pool.query(
-        `INSERT INTO estudiantes (tutor_id, nombre, grado, paralelo)
-         VALUES (?, ?, ?, ?)`,
-        [tutorId, st.name, st.grade, st.parallel]
+
+      const monto = st.monto ?? 0;
+
+      const [resultStudent] = await connection.query(
+        `INSERT INTO estudiantes (tutor_id, nombre, grado, paralelo, monto)
+         VALUES (?, ?, ?, ?, ?)`,
+        [
+          tutorId,
+          st.name,
+          st.grade,
+          st.parallel,
+          monto
+        ]
       );
+
+      const estudianteId = resultStudent.insertId;
+
+      /* ---------- CREAR MENSUALIDAD ---------- */
+
+      const base_amount = monto;
+      const extra_amount = 0;
+      const discount_amount = 0;
+
+      const total = base_amount + extra_amount - discount_amount;
+
+      await connection.query(
+        `INSERT INTO mensualidades
+        (estudiante_id, mes, anio, base_amount, extra_amount, discount_amount, total, tipo, estado)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'MENSUALIDAD', 'PENDIENTE')`,
+        [
+          estudianteId,
+          month,
+          year,
+          base_amount,
+          extra_amount,
+          discount_amount,
+          total
+        ]
+      );
+
     }
 
-    res.json({ ok: true, id: tutorId });
+    await connection.commit();
+
+    res.json({
+      ok: true,
+      tutor_id: tutorId
+    });
 
   } catch (error) {
-    console.error(error);
-    apiError(res, "BUSINESS_RULE", "No se pudo registrar el tutor");
+
+    await connection.rollback();    
+    res.status(400).json({
+      error: error.message,
+      stack: error.stack
+    });
+  } finally {
+    connection.release();
   }
+
 });
 
 router.put("/:id", async (req, res) => {
+
+  const connection = await pool.getConnection();
+
   try {
-    const tutorId = req.params.id;
+
+    const tutorId = Number(req.params.id);
     const { parent, students } = req.body;
-    await pool.query(
+
+    if (!parent?.name || !parent?.phone) {
+      return apiError(res, "VALIDATION_ERROR", "Nombre y teléfono son requeridos");
+    }
+
+    if (!Array.isArray(students)) {
+      return apiError(res, "VALIDATION_ERROR", "Lista de estudiantes inválida");
+    }
+
+    await connection.beginTransaction();
+
+    /* ---------- ACTUALIZAR TUTOR ---------- */
+
+    await connection.query(
       `UPDATE tutores
        SET nombre = ?, correo = ?, telefono = ?
        WHERE id = ?`,
-      [parent.name, parent.email || null, parent.phone, tutorId]
+      [
+        parent.name,
+        parent.email || null,
+        parent.phone,
+        tutorId
+      ]
     );
-    for (const st of students) {
-      if (st.id) {
-        await pool.query(
-          `UPDATE estudiantes
-           SET nombre = ?, grado = ?, paralelo = ?
-           WHERE id = ?`,
-          [st.name, st.grade, st.parallel, st.id]
-        );
-      } else {
-        await pool.query(
-          `INSERT INTO estudiantes (tutor_id, nombre, grado, paralelo)
-           VALUES (?, ?, ?, ?)`,
-          [tutorId, st.name, st.grade, st.parallel]
+
+    /* ---------- ESTUDIANTES EXISTENTES ---------- */
+
+    const [existing] = await connection.query(
+      `SELECT id FROM estudiantes WHERE tutor_id = ?`,
+      [tutorId]
+    );
+
+    const existingIds = new Set(existing.map(e => Number(e.id)));
+    const receivedIds = new Set(
+      students
+        .filter(s => s.id)
+        .map(s => Number(s.id))
+    );
+
+    /* ---------- ELIMINAR ESTUDIANTES BORRADOS ---------- */
+
+    for (const id of existingIds) {
+      if (!receivedIds.has(id)) {
+        await connection.query(
+          `DELETE FROM estudiantes WHERE id = ?`,
+          [id]
         );
       }
     }
 
-    res.json({ ok: true });
+    /* ---------- INSERTAR / ACTUALIZAR ---------- */
+
+    for (const st of students) {
+
+      const monto = st.monto ?? 0;
+
+      if (st.id) {
+
+        await connection.query(
+          `UPDATE estudiantes
+           SET nombre = ?, grado = ?, paralelo = ?, monto = ?
+           WHERE id = ?`,
+          [
+            st.name,
+            st.grade,
+            st.parallel,
+            monto,
+            st.id
+          ]
+        );
+
+      } else {
+
+        await connection.query(
+          `INSERT INTO estudiantes
+           (tutor_id, nombre, grado, paralelo, monto)
+           VALUES (?, ?, ?, ?, ?)`,
+          [
+            tutorId,
+            st.name,
+            st.grade,
+            st.parallel,
+            monto
+          ]
+        );
+
+      }
+
+    }
+
+    await connection.commit();
+
+    res.json({
+      ok: true
+    });
 
   } catch (error) {
+
+    await connection.rollback();
+
     console.error(error);
+
     apiError(res, "BUSINESS_RULE", "No se pudo actualizar");
+
+  } finally {
+
+    connection.release();
+
   }
+
 });
-
-
-
-
 module.exports = router;
 
 

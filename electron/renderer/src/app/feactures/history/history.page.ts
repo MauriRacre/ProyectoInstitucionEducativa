@@ -20,7 +20,9 @@ interface Filters {
   q: string;
   from: string;
   to: string;
+  paymentMethod?: string;
 }
+
 @Component({
   selector: 'app-history',
   standalone: true,
@@ -48,7 +50,7 @@ export class HistoryPage implements OnInit {
   transacciones: TransactionItem[] = [];
   paged: TransactionItem[] = [];
   concepts: string[] = [];
-  filters: Filters = { q: '', from: '', to: '' };
+  filters: Filters = { q: '', from: '', to: '', paymentMethod: '' };
   page = 1;
   pageSize = 10;
   totalPages = 1;
@@ -110,39 +112,49 @@ export class HistoryPage implements OnInit {
   }
   /** LOADING APIS */
   loadTransactions() {
+
     this.isLoading = true;
-    this.apiError = '';
 
-    this.txService.getTransactions(this.page, this.pageSize)
-      .subscribe({
-        next: (res) => {
-          console.log(res);
-          this.transacciones = res.data.map(x => ({
-            id: x.id,
-            dateISO: x.dateISO??null,
-            time: x.time ?? '',
-            type: x.type,
-            staff: x.staff ?? x.responsable ?? '',
-            tutor: x.tutor,
-            student: x.student,
-            grade: x.grade ?? '',
-            parallel: x.parallel ?? '',
-            concept: x.concept ?? '',
-            note: x.note ?? '',
-            amount: this.round2(x.amount),
-          }));4
+    this.txService.getTransactions({
+      q: this.filters.q,
+      from: this.filters.from,
+      to: this.filters.to,
+      paymentMethod: this.filters.paymentMethod,
+      page: this.page,
+      pageSize: this.pageSize
+    }).subscribe({
 
-          this.totalFromApi = res.total;
-          this.applyFilters();
-        },
-        error: (err) => {
-          console.error(err);
-          this.apiError = 'No se pudo cargar historial.';
-        },
-        complete: () => {
-          this.isLoading = false;
-        }
-      });
+      next: (res) => {
+
+        this.transacciones = res.data.map(x => ({
+          id: x.id,
+          dateISO: x.dateISO ?? null,
+          time: x.time ?? '',
+          type: x.type,
+          staff: x.staff ?? x.responsable ?? '',
+          tutor: x.tutor,
+          student: x.student,
+          grade: x.grade ?? '',
+          parallel: x.parallel ?? '',
+          concept: x.concept ?? '',
+          note: x.note ?? '',
+          paymentMethod: x.paymentMethod ?? null,
+          amount: this.round2(x.amount),
+        }));
+
+        this.totalFromApi = res.total;
+        this.refreshPagination();
+      },
+
+      error: (err) => {
+        console.error(err);
+        this.apiError = 'No se pudo cargar historial.';
+      },
+
+      complete: () => {
+        this.isLoading = false;
+      }
+    });
   }
   loadConcepts(){
     this.txService.getConcepts().subscribe({
@@ -205,60 +217,24 @@ export class HistoryPage implements OnInit {
   }
   /** TRANSACCIONES */
   applyFilters() {
-    this.isLoading = true;
-    
-    this.txService.searchTransactions({
-      search: this.filters.q,
-      from: this.filters.from,
-      to: this.filters.to,
-      page: this.page,
-      limit: this.pageSize
-    }).subscribe({
-      next: res => {
-        this.transacciones = res.data.map(x => {
-          const fecha = x.dateISO ?? (x.fecha ? x.fecha.split('T')[0] : '');
-          const hora = x.time ?? (x.fecha ? x.fecha.split('T')[1]?.substring(0,5) : '');
-
-          return {
-            id: x.id,
-            dateISO: fecha,
-            time: hora,
-            type: x.type,
-            staff: x.staff ?? x.responsable ?? '',
-            tutor: x.tutor,
-            student: x.student,
-            grade: x.grade ?? '',
-            parallel: x.parallel ?? '',
-            concept: x.concept ?? '',
-            note: x.note ?? '',
-            amount: this.round2(x.amount),
-          };
-        });
-
-        this.totalFromApi = res.total;
-        this.refreshPagination();
-      },
-      error: err => {
-        console.error(err);
-      },
-      complete: () => this.isLoading = false
-    });
+    this.loadTransactions();
   }
 
   resetFilters() {
-    this.filters = { q: '', from: '', to: ''};
+    this.filters = { q: '', from: '', to: '', paymentMethod: '' };
     this.applyFilters();
   }
   /** PDF */
   
 
   exportPdf(): void {
-    this.txService.searchTransactions({
-      search: this.filters.q,
+    this.txService.getTransactions({
+      q: this.filters.q,
       from: this.filters.from,
       to: this.filters.to,
+      paymentMethod: this.filters.paymentMethod,
       page: 1,
-      limit: 10000   
+      pageSize: 10000   
     }).subscribe({
       next: res => {
         console.log(res);
@@ -311,11 +287,11 @@ export class HistoryPage implements OnInit {
     const totalPagos = pagos.reduce((sum, x) => sum + Number(x.amount ?? 0), 0);
 
     const pagosQR = pagos
-      .filter(x => x.paymentMethod === 'qr')
+      .filter(x => x.paymentMethod === 'QR')
       .reduce((sum, x) => sum + Number(x.amount ?? 0), 0);
 
     const pagosEfectivo = pagos
-      .filter(x => x.paymentMethod === 'cash')
+      .filter(x => x.paymentMethod === 'EFECTIVO')
       .reduce((sum, x) => sum + Number(x.amount ?? 0), 0);
 
     const totalDescuentos = data
@@ -350,7 +326,7 @@ export class HistoryPage implements OnInit {
 
     doc.text(`Bs. ${totalPagos.toFixed(2)}`, col1, yValue);
     doc.text(`Bs. ${totalPagos.toFixed(2)}`, col2, yValue);
-    doc.text(`Bs. ${totalPagos.toFixed(2)}`, col3, yValue);
+    doc.text(`Bs. ${pagosEfectivo.toFixed(2)}`, col3, yValue);
     doc.text(`Bs. ${totalDescuentos.toFixed(2)}`, col4, yValue);
 
     const rows: string[][] = data.map(x => {
@@ -600,9 +576,9 @@ export class HistoryPage implements OnInit {
   }
   
   goToPage(p: number) {
-    if (p < 1) return;
+    if (p < 1 || p > this.totalPages) return;
     this.page = p;
-    this.applyFilters();
+    this.loadTransactions();
   }
 
   private refreshPagination() {

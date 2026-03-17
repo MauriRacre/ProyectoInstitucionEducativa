@@ -5,7 +5,7 @@ import { ModalService } from '../../core/swal/swal.service';
 import { ToastService } from '../../core/toast/toast.service';
 import { ModalAbono, DestinoPago } from '../../components/abono/modalAbono';
 import { ModalRegister, Mode, Parent } from '../../components/register/modalRegister';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { ActivatedRoute, RouterModule, Router } from '@angular/router';
 import { TutorApiService } from '../../core/services/tutor.service';
 import { CategoryService, CategoryDTO, CategoryType } from '../../core/services/categoria.service';
 import { PaymentService } from '../../core/services/pay.service';
@@ -16,11 +16,22 @@ import autoTable from 'jspdf-autotable';
 import { ReciboService } from '../../core/services/recibo.service';
 import { StudentService } from '../../core/services/estudiantes.service';
 import { InscriptionService } from '../../core/services/inscription.service';
-import { Router } from '@angular/router';
 import { ModalMulta } from '../../components/multa/multa.component';
 
 type Parallel = 'A' | 'B' | 'C';
-type Grade = 'Kinder' | 'Pre-Kinder' | '1er' | '2do' | '3ro' | '4to' | '5to' | '6to';
+type Grade =
+  | 'Sala Cuna'
+  | 'Maternal'
+  | 'Preparatorio'
+  | 'Taller Inicial'
+  | 'Kinder'
+  | 'Pre-Kinder'
+  | '1er'
+  | '2do'
+  | '3ro'
+  | '4to'
+  | '5to'
+  | '6to';
 
 interface Tutor {
   id: number;
@@ -34,6 +45,7 @@ interface Child {
   name: string;
   grade: Grade;
   parallel: Parallel;
+  monto?: number;
 }
 
 interface PaymentHistoryItem {
@@ -126,7 +138,7 @@ export class PayPage implements OnInit{
   pageSize = 6;
   childPage: Record<number, number>={};
   idTutor = 0;
-  paymentMethod: 'cash' | 'qr' = 'cash';
+  paymentMethod: 'EFECTIVO' | 'QR' = 'EFECTIVO';
   ngOnInit(): void {
     this.route.paramMap
     .subscribe(params => {
@@ -354,7 +366,7 @@ export class PayPage implements OnInit{
   visiblePages(childId: number): (number | '...')[] {
     //this.ensureChildPage(childId);
     const total = this.childTotalPages(childId);
-    const current = this.childPage[childId];
+    const current = this.childPage[childId] ?? 1;
     const delta = 1;
 
     if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
@@ -701,7 +713,7 @@ export class PayPage implements OnInit{
       conceptos: { concepto: string, monto: number }[],
       descuento: number,
     }[],
-    paymentMethod: 'cash' | 'qr'
+    paymentMethod: 'EFECTIVO' | 'QR'
   ) {
     console.log(movimientos, 'factura');
     if (!movimientos.length) {
@@ -717,7 +729,7 @@ export class PayPage implements OnInit{
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const logoBase64 = await this.loadImage('assets/images/logo.png');
-    const metodoPagoTexto = paymentMethod === 'qr' ? 'QR' : 'Efectivo';
+    const metodoPagoTexto = paymentMethod === 'QR' ? 'QR' : 'EFECTIVO';
     for (let i = 0; i < movimientos.length; i++) {
 
       if (i > 0) doc.addPage();
@@ -931,7 +943,7 @@ export class PayPage implements OnInit{
     subtotal: number;
     total: number;
     destino: DestinoPago;
-    paymentMethod?: 'cash' | 'qr';
+    paymentMethod?: 'EFECTIVO' | 'QR';
   }) {
 
     const year = new Date().getFullYear();
@@ -1026,8 +1038,9 @@ export class PayPage implements OnInit{
               tipo,
               {
                 paid: payload.montoUnitario - descuentoPorMes,
-                discount: 0,
-                responsible: this.currentUserName
+                discount: descuentoPorMes,
+                responsible: this.currentUserName,
+                metodo_pago: payload.paymentMethod ?? 'EFECTIVO'
               }
             )
           );
@@ -1046,7 +1059,7 @@ export class PayPage implements OnInit{
         conceptos: conceptosFactura,
         descuento: descuentoTotal
       });
-      await this.facturaPdf(movimientosFactura, payload.paymentMethod ?? 'cash');
+      await this.facturaPdf(movimientosFactura, payload.paymentMethod ?? 'EFECTIVO');
     }
     this.toast.success('Cargo registrado correctamente');
     this.fetchPayView(this.idTutor);
@@ -1071,17 +1084,26 @@ export class PayPage implements OnInit{
   editValue: Parent | null = null;
   openModalEdit(){
     this.mode = 'edit';
+    const today = new Date();
+
     this.editValue = {
       parent: {
         name: this.tutor?.name ?? '',
         email: this.tutor?.email ?? '',
         phone: this.tutor?.phone ?? '',
       },
+
+      period: {
+        year: today.getFullYear(),
+        month: today.getMonth() + 1
+      },
+
       students: (this.children ?? []).map((c: any) => ({
         id: c.id,
         name: c.name,
         grade: c.grade,
         parallel: c.parallel,
+        monto: c.monto ?? 0
       })),
     };
     this.showModalEdit = true;

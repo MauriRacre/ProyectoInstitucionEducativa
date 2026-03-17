@@ -127,12 +127,13 @@
           <div class="lg:col-span-2">
             <label class="text-xs font-semibold text-gray-600">TIPO DE PAGO</label>
             <select
+              [(ngModel)]="filters.paymentMethod"
               (ngModelChange)="applyFilters()"
               class="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
             >
               <option value="">Todos</option>
-              <option value="qr">QR</option>
-              <option value="cash">Efectivo</option>
+              <option value="QR">QR</option>
+              <option value="EFECTIVO">Efectivo</option>
             </select>
           </div>
           <!-- Actions -->
@@ -199,7 +200,7 @@
                 </td>
 
                 <td class="px-5 py-4 max-w-xs break-words">
-                  <div class="font-semibold text-gray-900">Efectivo</div>
+                  <div class="font-semibold text-gray-900">{{ t.paymentMethod === 'QR' ? 'QR' : 'EFECTIVO' }}</div>
                 </td>
 
                 <td class="px-5 py-4 text-right">
@@ -210,7 +211,7 @@
               </tr>
 
               <tr *ngIf="transacciones.length === 0">
-                <td colspan="7" class="px-5 py-12 text-center">
+                <td colspan="8" class="px-5 py-12 text-center">
                   <div class="text-sm font-semibold text-gray-900">No se encontraron resultados</div>
                   <div class="mt-1 text-sm text-gray-500">Prueba cambiar filtros o búsqueda.</div>
                 </td>

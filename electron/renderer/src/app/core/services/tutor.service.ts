@@ -42,9 +42,40 @@ export interface TutorStudentsResponse {
   items: StudentItem[];
 }
 
-export interface UpsertTutorPayload {
-  parent: { name: string; email?: string | null; phone: string };
-  students: Array<{ id?: number; name: string; grade: string; parallel: string }>;
+export interface CreateTutorPayload {
+  parent: {
+    name: string;
+    email?: string | null;
+    phone: string;
+  };
+
+  period: {
+    year: number;
+    month: number;
+  };
+
+  students: Array<{
+    name: string;
+    grade: string;
+    parallel: string;
+    monto: number;
+  }>;
+}
+
+export interface UpdateTutorPayload {
+  parent: {
+    name: string;
+    email?: string | null;
+    phone: string;
+  };
+
+  students: Array<{
+    id?: number;
+    name: string;
+    grade: string;
+    parallel: string;
+    monto: number;
+  }>;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -54,14 +85,26 @@ export class TutorApiService {
 
     constructor(private http: HttpClient) {}
 
-    list(params?: { q?: string; status?: TutorStatusFilter; page?: number; pageSize?: number }) {
-        let hp = new HttpParams();
-        if (params?.q != null) hp = hp.set('q', params.q);
-        if (params?.status != null) hp = hp.set('status', params.status);
-        if (params?.page != null) hp = hp.set('page', String(params.page));
-        if (params?.pageSize != null) hp = hp.set('pageSize', String(params.pageSize));
+    list(params?: {
+      q?: string;
+      status?: TutorStatusFilter;
+      concepto?: string;
+      page?: number;
+      pageSize?: number;
+    }) {
 
-        return this.http.get<TutorListResponse>(`${this.baseUrl}${this.resource}`, { params: hp });
+      let hp = new HttpParams();
+
+      if (params?.q != null) hp = hp.set('q', params.q);
+      if (params?.status != null) hp = hp.set('status', params.status);
+      if (params?.concepto != null) hp = hp.set('concepto', params.concepto);
+      if (params?.page != null) hp = hp.set('page', String(params.page));
+      if (params?.pageSize != null) hp = hp.set('pageSize', String(params.pageSize));
+
+      return this.http.get<TutorListResponse>(
+        `${this.baseUrl}${this.resource}`,
+        { params: hp }
+      );
     }
     /**tutor con estudiantes id  */
     getById(tutorId: number) {
@@ -84,11 +127,11 @@ export class TutorApiService {
         return this.http.get<any>(`${this.baseUrl}${this.resource}/${tutorId}/full`);
     }
 
-    create(payload: UpsertTutorPayload) {
+    create(payload: CreateTutorPayload) {
         return this.http.post<any>(`${this.baseUrl}${this.resource}`, payload);
     }
 
-    update(tutorId: number, payload: UpsertTutorPayload) {
+    update(tutorId: number, payload: UpdateTutorPayload) {
         return this.http.put<{ ok: true }>(`${this.baseUrl}${this.resource}/${tutorId}`, payload);
     }
 

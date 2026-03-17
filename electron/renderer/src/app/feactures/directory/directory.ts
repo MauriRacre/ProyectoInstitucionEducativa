@@ -58,6 +58,7 @@ export class Directory implements OnInit{
         this.tutorapi.list({
             q: this.query?.trim() ?? '',
             status: this.tabToStatus(this.selectedTab),
+            concepto: this.selectedCategory,
             page: this.page,
             pageSize: this.pageSize,
         })
@@ -213,7 +214,10 @@ export class Directory implements OnInit{
                 console.error(err);
                 this.toast.error('No se pudo guardar el tutor.');
             },
-            complete: () => (this.saving = false),
+            complete: () => {
+                this.loadCategories();
+                this.saving = false
+            },
         });
     }
 

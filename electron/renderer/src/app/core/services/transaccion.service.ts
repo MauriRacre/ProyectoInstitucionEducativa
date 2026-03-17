@@ -22,23 +22,25 @@ export interface TransactionItem {
     parallel?: string;
     concept?: string;
     note?: string | null;
+    paymentMethod?: 'QR' | 'EFECTIVO' | null;
     type: TransactionType;
     amount: number;
 }
 
 export interface PaginatedResponse<T> {
-    total: number;
     data: T[];
     page: number;
-    totalPages: number;
+    pageSize: number;
+    total: number;
 }
 
 export interface TransactionSearchParams {
-    search?: string;
-    from?: string; 
-    to?: string;   
+    q?: string;
+    from?: string;
+    to?: string;
+    paymentMethod?: string;
     page?: number;
-    limit?: number;
+    pageSize?: number;
 }
 
 @Injectable({
@@ -56,36 +58,21 @@ export class TransactionsService {
      * GET /
      * Historial paginado general
      */
-    getTransactions(page = 1, pageSize = 10): Observable<PaginatedResponse<TransactionItem>> {
-        const params = new HttpParams()
-        .set('page', page)
-        .set('pageSize', pageSize);
-
-        return this.http.get<PaginatedResponse<TransactionItem>>(
-        `${this.baseUrl}${this.resource}`,
-        { params }
-        );
-    }
-
-    /**
-     * GET /search
-     * Historial con filtros
-     */
-    searchTransactions(filters: TransactionSearchParams): Observable<PaginatedResponse<TransactionItem>> {
+    getTransactions(filters: TransactionSearchParams = {}): Observable<PaginatedResponse<TransactionItem>> {
 
         let params = new HttpParams();
 
         Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
+            if (value !== undefined && value !== null && value !== '') {
             params = params.set(key, String(value));
-        }
+            }
         });
 
         return this.http.get<PaginatedResponse<TransactionItem>>(
-        `${this.baseUrl}${this.resource}/search-modificado`,
-        { params }
+            `${this.baseUrl}${this.resource}`,
+            { params }
         );
-    }
+        }
     /** Lista de Conceptos */
     getConcepts(): Observable<string[]>{
         return this.http.get<string[]>(`${this.baseUrl}${this.resource}/concepts`);
