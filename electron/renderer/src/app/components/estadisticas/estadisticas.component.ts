@@ -39,6 +39,11 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
     @Input() descuentos: any[] = [];
     @Input() selectedMonth!: number;
     @Input() selectedYear!: number;
+    @Input() ingresosQrHoy!: number;
+    @Input() ingresosEfectivoHoy!: number;
+    @Input() ingresosHoy!: number;
+    @Input() ingresosQrAnual!: number;
+    @Input() ingresosEfectivoAnual!: number;
 
     @Output() monthChange = new EventEmitter<number>();
 
@@ -59,12 +64,6 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
     private inscritosChart?: Chart;
     private ingresosCursosChart?: Chart;
     private descuentosChart?: Chart;
-    ingresosQrHoy = 0;
-    ingresosEfectivoHoy = 0;
-    ingresosHoy = 0;
-
-    ingresosQrAnual = 0;
-    ingresosEfectivoAnual = 0;
     private viewReady = false;
 
     // =============================
@@ -369,58 +368,106 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
         const doc = new jsPDF('portrait');
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
-        
+
         const marginX = 18;
         const contentWidth = pageWidth - marginX * 2;
         let currentY = 20;
-    
+
         // ==============================
         // HEADER
         // ==============================
-    
+
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(18);
         doc.text('UNIDAD EDUCATIVA MARAVILLAS DEL SABER', pageWidth / 2, currentY, { align: 'center' });
-    
+
         currentY += 10;
-    
+
         doc.setFontSize(14);
         doc.text('Reporte Estadístico General', pageWidth / 2, currentY, { align: 'center' });
-    
+
         currentY += 8;
-    
+
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         doc.text(`Fecha de emisión: ${new Date().toLocaleDateString('es-BO')}`, 14, currentY);
-    
+
         currentY += 6;
         doc.line(14, currentY, pageWidth - 14, currentY);
-    
+
         currentY += 10;
-    
+
         // ==============================
-        // KPI RESUMEN
+        // KPI GENERALES
         // ==============================
-    
+
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
         doc.text('Resumen General', 14, currentY);
-    
+
         currentY += 8;
-    
+
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(11);
-    
+
         doc.text(`Total Estudiantes: ${this.totalEstudiantes}`, 14, currentY);
         currentY += 6;
-    
+
         doc.text(`Total Tutores: ${this.totalTutores}`, 14, currentY);
         currentY += 10;
-    
+
+        // ==============================
+        // KPI INGRESOS (🔥 NUEVO)
+        // ==============================
+
+        const qrHoy = Number(this.ingresosQrHoy || 0);
+        const efectivoHoy = Number(this.ingresosEfectivoHoy || 0);
+        const totalHoy = Number(this.ingresosHoy || 0);
+
+        const qrAnual = Number(this.ingresosQrAnual || 0);
+        const efectivoAnual = Number(this.ingresosEfectivoAnual || 0);
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.text('Resumen de Ingresos', 14, currentY);
+
+        currentY += 8;
+
+        const col1 = 14;
+        const col2 = pageWidth / 2;
+
+        doc.setFont('helvetica', 'bold');
+        doc.text('Hoy', col1, currentY);
+        doc.text(`Año ${this.selectedYear}`, col2, currentY);
+
+        currentY += 6;
+
+        doc.setFont('helvetica', 'normal');
+
+        // QR
+        doc.setTextColor(16, 185, 129);
+        doc.text(`QR: Bs. ${qrHoy.toFixed(2)}`, col1, currentY);
+        doc.text(`QR: Bs. ${qrAnual.toFixed(2)}`, col2, currentY);
+
+        currentY += 6;
+
+        // EFECTIVO
+        doc.setTextColor(37, 99, 235);
+        doc.text(`Efectivo: Bs. ${efectivoHoy.toFixed(2)}`, col1, currentY);
+        doc.text(`Efectivo: Bs. ${efectivoAnual.toFixed(2)}`, col2, currentY);
+
+        currentY += 6;
+
+        // TOTAL
+        doc.setTextColor(0, 0, 0);
+        doc.text(`Total: Bs. ${totalHoy.toFixed(2)}`, col1, currentY);
+
+        currentY += 12;
+
         // ==============================
         // FUNCIÓN PARA AGREGAR GRÁFICOS
         // ==============================
-    
+
         const addChartToPdf = (
             canvasRef: ElementRef | undefined,
             title: string
@@ -436,7 +483,6 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
             const imgWidth = contentWidth;
             const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
 
-            // Salto automático de página si no cabe
             if (currentY + imgHeight + 20 > pageHeight - 20) {
             doc.addPage();
             currentY = 22;
@@ -444,6 +490,7 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
 
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(12);
+            doc.setTextColor(0,0,0);
             doc.text(title, marginX, currentY);
 
             currentY += 6;
@@ -459,20 +506,20 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
 
             currentY += imgHeight + 12;
         };
-    
+
         // ==============================
         // GRÁFICOS
         // ==============================
-    
+
         addChartToPdf(
             this.ingresosAnualCanvas,
             `Ingresos Anuales ${this.selectedYear}`
         );
-        
+
         addChartToPdf(
             this.descuentosCanvas,
             `Descuentos Anuales ${this.selectedYear}`
-        )
+        );
 
         addChartToPdf(
             this.inscritosCanvas,
@@ -486,33 +533,40 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
 
         addChartToPdf(
             this.morosidadCanvas,
-            `Análisis de Morosidad - ${this.getMonthName()}`
+            `Morosidad - ${this.getMonthName()}`
         );
 
         // ==============================
         // FOOTER
         // ==============================
-    
+
         const totalPages = doc.getNumberOfPages();
-    
+
         for (let i = 1; i <= totalPages; i++) {
             doc.setPage(i);
             doc.setFontSize(9);
             doc.setTextColor(150);
+
             doc.text(
-                `Página ${i} de ${totalPages}`,
-                pageWidth - 14,
-                pageHeight - 10,
-                { align: 'right' }
+            `Sistema de Gestión Escolar`,
+            14,
+            pageHeight - 10
+            );
+
+            doc.text(
+            `Página ${i} de ${totalPages}`,
+            pageWidth - 14,
+            pageHeight - 10,
+            { align: 'right' }
             );
         }
-    
+
         // ==============================
         // EXPORTAR
         // ==============================
-    
+
         const pdfBlob = doc.output('blob');
         const url = URL.createObjectURL(pdfBlob);
         window.open(url);
-    }
+        }
 }

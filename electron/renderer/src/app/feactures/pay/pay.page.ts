@@ -794,14 +794,14 @@ export class PayPage implements OnInit{
       // ================= TABLA UNIFICADA =================
 
       const conceptosLength = mov.conceptos.length;
-
+      const totalDeuda = this.totals.pending - totalRecibido;
       const body = [
         ...mov.conceptos.map(c => [
           c.concepto,
           `Bs. ${c.monto.toFixed(2)}`
         ]),
 
-        ['Total deuda:', `Bs. ${subtotal.toFixed(2)}`],
+        ['Total deuda:', `Bs. ${totalDeuda.toFixed(2)}`],
         ['Descuento:', `Bs. ${mov.descuento.toFixed(2)}`],
         [
           { content: 'Total pagado:', styles: { fontStyle: 'bold' as const } },

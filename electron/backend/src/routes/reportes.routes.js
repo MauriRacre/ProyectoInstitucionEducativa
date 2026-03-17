@@ -246,7 +246,7 @@ router.get("/caja/hoy", async (req, res) => {
         END) AS total
 
       FROM pagos
-      WHERE fecha = ?
+      WHERE Date(fecha) = ?
     `,[date]);
 
     res.json(rows[0]);

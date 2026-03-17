@@ -54,7 +54,7 @@ export class Directory implements OnInit{
     }
     loadTutors(): void {
         this.isLoading = true;
-
+        console.log(this.selectedCategory);
         this.tutorapi.list({
             q: this.query?.trim() ?? '',
             status: this.tabToStatus(this.selectedTab),
@@ -134,12 +134,23 @@ export class Directory implements OnInit{
         this.page = 1;
         this.loadTutors();
     }
-
-    onQueryChange() {
+    private refresh() {
         this.page = 1;
         this.loadTutors();
     }
+    onQueryChange() {
+        this.refresh();
+    }
 
+    onCategoryChange() {
+        this.refresh();
+    }
+    resetFilters() {
+        this.query = '';
+        this.selectedCategory = '';
+
+        this.refresh();
+    }
     nextPage() {
         this.page = Math.min(this.totalPages, this.page + 1);
     }

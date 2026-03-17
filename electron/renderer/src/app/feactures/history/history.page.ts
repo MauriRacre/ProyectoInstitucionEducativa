@@ -42,6 +42,12 @@ export class HistoryPage implements OnInit {
   ingresosAnual: any;
   ranking: any[] = [];
   descuentos: any[] = [];
+  ingresosQrHoy = 0;
+  ingresosEfectivoHoy = 0;
+  ingresosHoy = 0;
+  ingresosQrAnual = 0;
+  ingresosEfectivoAnual = 0;
+
   /** TABS VARIABLES */
   selectedTab: TabKey = 'transacciones';
   isLoading = false;
@@ -194,6 +200,7 @@ export class HistoryPage implements OnInit {
     });
   }
   loadStatistics(): void {
+    const today = new Date().toISOString().split('T')[0];
     forkJoin({
       estudiantes: this.estadisticasService.getTotalEstudiantes(),
       tutores: this.estadisticasService.getTotalTutores(),
@@ -202,7 +209,9 @@ export class HistoryPage implements OnInit {
       inscritos: this.estadisticasService.getInscritosCursos(this.month, this.year),
       ingresosCursos: this.estadisticasService.getIngresosCursos(this.month, this.year),
       ranking: this.estadisticasService.getRankingEstudiantes(this.month, this.year),
-      descuentos: this.estadisticasService.getDescuentosAnual(this.year)
+      descuentos: this.estadisticasService.getDescuentosAnual(this.year),
+      cajaHoy: this.estadisticasService.getCajaHoy(today),
+      cajaTotal: this.estadisticasService.getCajaTotal(),
     }).subscribe(res => {
       this.totalEstudiantes = res.estudiantes.total;
       this.totalTutores = res.tutores.total;
@@ -212,7 +221,12 @@ export class HistoryPage implements OnInit {
       this.ingresosCursos = res.ingresosCursos;
       this.ranking = res.ranking;
       this.descuentos = res.descuentos;
-      console.log('Ingresos anual',this.ingresosAnual);
+      this.ingresosQrHoy = Number(res.cajaHoy.qr || 0);
+      this.ingresosEfectivoHoy = Number(res.cajaHoy.efectivo || 0);
+      this.ingresosHoy = Number(res.cajaHoy.total || 0);
+      this.ingresosQrAnual = Number(res.cajaTotal.qr || 0);
+      this.ingresosEfectivoAnual = Number(res.cajaTotal.efectivo || 0);
+      console.log(res);
     });
   }
   /** TRANSACCIONES */

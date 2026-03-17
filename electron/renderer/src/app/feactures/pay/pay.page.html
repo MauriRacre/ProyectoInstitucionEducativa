@@ -417,8 +417,8 @@
                     <button
                     type="button"
                     class="flex rounded-md px-3 py-1 text-sm font-medium transition w-full justify-center gap-3"
-                    (click)="paymentMethod='cash'"
-                    [ngClass]="paymentMethod === 'cash'
+                    (click)="paymentMethod='EFECTIVO'"
+                    [ngClass]="paymentMethod === 'EFECTIVO'
                       ? 'bg-celeste text-white shadow'
                       : 'text-gray-700 hover:bg-gray-300'"
                     >
@@ -432,8 +432,8 @@
                     <button
                     type="button"
                     class="flex rounded-md px-3 py-1 text-sm font-medium transition w-full justify-center gap-3"
-                    (click)="paymentMethod='qr'"
-                    [ngClass]="paymentMethod === 'qr'
+                    (click)="paymentMethod='QR'"
+                    [ngClass]="paymentMethod === 'QR'
                       ? 'bg-celeste text-white shadow'
                       : 'text-gray-700 hover:bg-gray-300'"
                     >

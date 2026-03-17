@@ -41,4 +41,14 @@ export class EstadisticasService {
     getDescuentosAnual(year: number): Observable<any[]> {
         return this.http.get<any[]>(`${this.baseUrl}/reportes/descuentos-anual?year=${year}`);
     }
+    
+    getCajaHoy(date: string): Observable<any> {
+        return this.http.get<any>(`${this.baseUrl}/reportes/caja/hoy`, {
+            params: { date }
+        });
+    }
+
+    getCajaTotal(): Observable<any> {
+        return this.http.get<any>(`${this.baseUrl}/reportes/caja/total`);
+    }
 }
