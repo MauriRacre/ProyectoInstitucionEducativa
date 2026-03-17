@@ -4,29 +4,43 @@ async function generarMensualidades(pool) {
     const mes = fecha.getMonth() + 1;
     const anio = fecha.getFullYear();
 
-    console.log(`Generando mensualidades y servicios para ${mes}/${anio}`);
+    console.log(`Generando mensualidades para ${mes}/${anio}`);
+
+    /* ================= TRAER MONTO DESDE ESTUDIANTES ================= */
 
     const [estudiantes] = await pool.query(
-      "SELECT id FROM estudiantes"
+      "SELECT id, monto FROM estudiantes"
     );
 
     for (const estudiante of estudiantes) {
+
+      const monto = estudiante.monto || 0;
+
       await pool.query(
         `
         INSERT INTO mensualidades 
         (estudiante_id, mes, anio, monto, estado, base_amount, extra_amount, discount_amount, total)
-        VALUES (?, ?, ?, 490, 'PENDIENTE', 490, 0, 0, 490)
+        VALUES (?, ?, ?, ?, 'PENDIENTE', ?, 0, 0, ?)
         ON DUPLICATE KEY UPDATE estudiante_id = estudiante_id
         `,
-        [estudiante.id, mes, anio]
+        [
+          estudiante.id,
+          mes,
+          anio,
+          monto,
+          monto,
+          monto
+        ]
       );
     }
+
+    /* ================= SERVICIOS ================= */
 
     const [serviciosActivos] = await pool.query(
       `
       SELECT DISTINCT estudiante_id, servicio_id, total
       FROM estudiante_servicio
-      WHERE estado = 'PAGADO' AND estado='PENDIENTE'
+      WHERE estado IN ('PENDIENTE', 'PAGADO')
       `
     );
 

@@ -12,7 +12,8 @@ router.get("/", async (req, res) => {
       q = "",
       from,
       to,
-      paymentMethod
+      paymentMethod,
+      type
     } = req.query;
 
     const limit = Number(pageSize);
@@ -36,7 +37,7 @@ router.get("/", async (req, res) => {
       params.push(value, value, value, value);
     }
 
-    /* ================= FECHA ================= */
+    /* ================= FECHAS ================= */
 
     if (from) {
       where += " AND dateISO >= ? ";
@@ -53,6 +54,13 @@ router.get("/", async (req, res) => {
     if (paymentMethod) {
       where += " AND paymentMethod = ? ";
       params.push(paymentMethod);
+    }
+
+    /* ================= TIPO ================= */
+
+    if (type) {
+      where += " AND type = ? ";
+      params.push(type);
     }
 
     /* ================= QUERY BASE ================= */
@@ -78,10 +86,7 @@ router.get("/", async (req, res) => {
         e.nombre AS student,
         e.grado AS grade,
         e.paralelo AS parallel,
-        CONCAT(
-          'Mensualidad ',
-          m.mes,' ',m.anio
-        ) AS concept,
+        CONCAT('Mensualidad ', m.mes, ' ', m.anio) AS concept,
         p.nota AS note,
         (p.monto + p.descuento) AS amount
       FROM pagos p
@@ -117,18 +122,75 @@ router.get("/", async (req, res) => {
       JOIN servicios s ON s.id = es.servicio_id
       JOIN estudiantes e ON e.id = es.estudiante_id
       JOIN tutores t ON t.id = e.tutor_id
-      WHERE p.tipo = 'SERVICIO'
+      WHERE p.tipo = 'SERVICIO' AND es.evento_id IS NULL
 
       UNION ALL
 
-      /* ================= GASTOS ================= */
+      /* ================= EVENTOS ================= */
+
+      SELECT 
+        p.id,
+        DATE(p.fecha) AS dateISO,
+        TIME(p.fecha) AS time,
+        CASE 
+          WHEN p.reversed = 1 OR p.monto < 0 THEN 'REVERSAL'
+          WHEN p.monto = 0 AND p.descuento > 0 THEN 'DISCOUNT'
+          ELSE 'PAYMENT'
+        END AS type,
+        p.metodo_pago AS paymentMethod,
+        p.responsable AS staff,
+        t.nombre AS tutor,
+        e.nombre AS student,
+        e.grado AS grade,
+        e.paralelo AS parallel,
+        CONCAT('Evento ', ev.evento) AS concept,
+        p.nota AS note,
+        (p.monto + p.descuento) AS amount
+      FROM pagos p
+      JOIN estudiante_servicio es ON es.id = p.referencia_id
+      JOIN eventos ev ON ev.id = es.evento_id
+      JOIN estudiantes e ON e.id = es.estudiante_id
+      JOIN tutores t ON t.id = e.tutor_id
+      WHERE p.tipo = 'SERVICIO' AND es.evento_id IS NOT NULL
+
+      UNION ALL
+
+      /* ================= GASTOS OCASIONALES ================= */
+
+      SELECT
+        p.id,
+        DATE(p.fecha) AS dateISO,
+        TIME(p.fecha) AS time,
+        CASE 
+          WHEN p.reversed = 1 OR p.monto < 0 THEN 'REVERSAL'
+          WHEN p.monto = 0 AND p.descuento > 0 THEN 'DISCOUNT'
+          ELSE 'PAYMENT'
+        END AS type,
+        p.metodo_pago AS paymentMethod,
+        p.responsable AS staff,
+        t.nombre AS tutor,
+        e.nombre AS student,
+        e.grado AS grade,
+        e.paralelo AS parallel,
+        CONCAT('Gasto ocasional ', g.concepto) AS concept,
+        p.nota AS note,
+        (p.monto + p.descuento) AS amount
+      FROM pagos p
+      JOIN gastos_ocacionales g ON g.id = p.referencia_id
+      LEFT JOIN estudiantes e ON e.id = g.estudiante_id
+      LEFT JOIN tutores t ON t.id = e.tutor_id
+      WHERE p.tipo = 'GASTO_OCASIONAL'
+
+      UNION ALL
+
+      /* ================= GASTOS DEL SISTEMA ================= */
 
       SELECT
         mov.id,
         DATE(mov.fecha) AS dateISO,
         TIME(mov.fecha) AS time,
         'EXPENSE' AS type,
-        NULL AS paymentMethod,
+        mov.metodo_pago AS paymentMethod,
         mov.encargado AS staff,
         NULL AS tutor,
         NULL AS student,
@@ -168,7 +230,8 @@ router.get("/", async (req, res) => {
       data: rows,
       page: Number(page),
       pageSize: limit,
-      total
+      total,
+      totalPages: Math.ceil(total / limit)
     });
 
   } catch (error) {

@@ -290,11 +290,12 @@ router.post("/movements/:movementId/reversal", async (req, res) => {
 
 
 
-
-
-router.post("/gasto", async (req, res) => {
+router.post("/gasto-salida", async (req, res) => {
   try {
-    const { encargado, concepto, monto } = req.body;
+
+    const { encargado, concepto, monto, metodo_pago } = req.body;
+
+    /* ================= VALIDACIONES ================= */
 
     if (!encargado || !concepto || !monto) {
       return res.status(400).json({
@@ -308,19 +309,39 @@ router.post("/gasto", async (req, res) => {
       });
     }
 
+    if (metodo_pago && !["EFECTIVO", "QR"].includes(metodo_pago)) {
+      return res.status(400).json({
+        message: "Método de pago inválido (EFECTIVO o QR)"
+      });
+    }
+
+    /* ================= INSERT ================= */
+
     await pool.query(
       `
-      INSERT INTO movimientos (tipo, concepto, monto, encargado)
-      VALUES ('GASTO', ?, ?, ?)
+      INSERT INTO movimientos (tipo, concepto, monto, encargado, metodo_pago)
+      VALUES ('GASTO', ?, ?, ?, ?)
       `,
-      [concepto, monto, encargado]
+      [
+        concepto,
+        monto,
+        encargado,
+        metodo_pago || null
+      ]
     );
 
-    res.json({ message: "Gasto registrado correctamente" });
+    res.json({
+      message: "Gasto registrado correctamente"
+    });
 
   } catch (error) {
+
     console.error(error);
-    res.status(500).json({ message: "Error registrando gasto" });
+
+    res.status(500).json({
+      message: "Error registrando gasto"
+    });
+
   }
 });
 
