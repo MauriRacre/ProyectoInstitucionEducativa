@@ -17,7 +17,17 @@ import { ReciboService } from '../../core/services/recibo.service';
 import { StudentService } from '../../core/services/estudiantes.service';
 import { InscriptionService } from '../../core/services/inscription.service';
 import { ModalMulta } from '../../components/multa/multa.component';
-
+type FacturaData = {
+  totalDebt: number;
+  mensualidades: {
+    monthNumber: number | string;
+    totalPaid: number;
+  }[];
+  extras: {
+    monthNumber: number | string;
+    totalPaid: number;
+  }[];
+};
 type Parallel = 'A' | 'B' | 'C';
 type Grade =
   | 'Sala Cuna'
@@ -121,9 +131,9 @@ export class PayPage implements OnInit{
     private estudianteService: StudentService,
     private router: Router
   ) {}
-      goHome() {
-      this.router.navigate(['/']);
-    }
+  goHome() {
+    this.router.navigate(['/']);
+  }
 
   isLoading = false;
   apiErrorMsg='';
@@ -707,6 +717,31 @@ export class PayPage implements OnInit{
 
   return `${letras} ${centavos.toString().padStart(2,'0')}/100`;
   }
+  /** load datos factura */
+  facturaData: FacturaData = {
+    totalDebt: 0,
+    mensualidades: [],
+    extras: []
+  };
+  async loadFacturaHistory(idChild: number): Promise<FacturaData> {
+    const year = 2026;
+
+    const deuda = await firstValueFrom(this.paymentApi.getDeuda(idChild));
+    const mensualidades = await firstValueFrom(
+      this.paymentApi.getPagosMensualidad(idChild, year)
+    );
+    const extras = await firstValueFrom(
+      this.paymentApi.getPagosServicios(idChild, year)
+    );
+
+    return {
+      totalDebt: deuda.totalDebt,
+      mensualidades: mensualidades.data || [],
+      extras: extras.data || []
+    };
+  }
+
+  
   async facturaPdf(
     movimientos: {
       childId: number,
@@ -715,21 +750,38 @@ export class PayPage implements OnInit{
     }[],
     paymentMethod: 'EFECTIVO' | 'QR'
   ) {
-    console.log(movimientos, 'factura');
+
     if (!movimientos.length) {
       this.toast.error('No hay pagos para generar recibo');
       return;
     }
+    const newWindow = window.open('', '_blank');
+    // ================= 🚀 PRECARGA EN PARALELO =================
+    const facturasMap = new Map<number, FacturaData>();
+      console.log('factura map inicio');
 
+    await Promise.all(
+      movimientos.map(async (mov) => {
+        if (!facturasMap.has(mov.childId)) {
+          const data = await this.loadFacturaHistory(mov.childId);
+          facturasMap.set(mov.childId, data);
+        }
+      })
+    );
+      console.log('factura map fin');
+
+    // ================= PDF =================
     const doc = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
       format: [140,216]
     });
+
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const logoBase64 = await this.loadImage('assets/images/logo.png');
     const metodoPagoTexto = paymentMethod === 'QR' ? 'QR' : 'EFECTIVO';
+
     for (let i = 0; i < movimientos.length; i++) {
 
       if (i > 0) doc.addPage();
@@ -738,14 +790,13 @@ export class PayPage implements OnInit{
       const child = this.children.find(c => c.id === mov.childId);
       if (!child) continue;
 
+      // ================= 👉 DATA POR ESTUDIANTE =================
+      const facturaData = facturasMap.get(mov.childId)!;
+
       const subtotal = mov.conceptos.reduce((a,c)=>a+c.monto,0) + mov.descuento;
       const totalRecibido = subtotal - mov.descuento;
-      const reciboNumero = this.reciboNum.getNextReciboNumero();
-
-      //let y = 20;
 
       // ================= HEADER =================
-
       doc.addImage(logoBase64, 'PNG', 15, 5, 25, 25);
 
       doc.setFont('helvetica','bold');
@@ -760,118 +811,87 @@ export class PayPage implements OnInit{
       doc.setDrawColor(180);
       doc.line(15, 32, pageWidth - 10, 32);
 
-      let y = 42;
-
-      // ================= BLOQUE DATOS =================
-
-      const tableStartY = 55;
+      const tableStartY = 45;
       const tableWidth = pageWidth * 0.70; 
       const leftTableMargin = (pageWidth - tableWidth) / 2;
-      doc.setFontSize(9);
-      doc.setFont('helvetica','normal');
 
-      doc.text(
-        `Tutor: ${this.tutor.name}   |   Cel: ${this.tutor.phone}`,
-        pageWidth / 2,
-        tableStartY - 18,
-        { align: 'center' }
-      );
+      doc.setFontSize(8);
 
-      doc.text(
-        `Estudiante: ${child.name}   |   Curso: ${child.grade} ${child.parallel}`,
-        pageWidth / 2,
-        tableStartY - 12,
-        { align: 'center' }
-      );
+      const totalDeuda = facturaData.totalDebt;
 
-      doc.text(
-        `Forma de pago: ${metodoPagoTexto}   |   Recibido por: ${this.currentUserName}`,
-        pageWidth / 2,
-        tableStartY - 6,
-        { align: 'center' }
-      );
-      
-      // ================= TABLA UNIFICADA =================
+      const line1 = `Tutor: ${this.tutor.name} (${this.tutor.phone})  |  Est: ${child.name} | Curso: ${child.grade} ${child.parallel}`;
+      const line2 = `Total deuda: Bs. ${totalDeuda.toFixed(2)}  |  Pago: ${metodoPagoTexto}  |  Recibido: ${this.currentUserName}`;
 
+      doc.text(doc.splitTextToSize(line1, pageWidth * 0.85), pageWidth / 2, tableStartY - 8, { align: 'center' });
+      doc.text(doc.splitTextToSize(line2, pageWidth * 0.85), pageWidth / 2, tableStartY - 3, { align: 'center' });
+
+      // ================= TABLA PRINCIPAL =================
       const conceptosLength = mov.conceptos.length;
-      const totalDeuda = this.totals.pending - totalRecibido;
-      const body = [
-        ...mov.conceptos.map(c => [
-          c.concepto,
-          `Bs. ${c.monto.toFixed(2)}`
-        ]),
-
-        ['Total deuda:', `Bs. ${totalDeuda.toFixed(2)}`],
-        ['Descuento:', `Bs. ${mov.descuento.toFixed(2)}`],
-        [
-          { content: 'Total pagado:', styles: { fontStyle: 'bold' as const } },
-          { content: `Bs. ${totalRecibido.toFixed(2)}`, styles: { fontStyle: 'bold' as const } }
-        ]
-      ];
 
       autoTable(doc,{
         startY: tableStartY,
-        margin: { left: leftTableMargin  },
+        margin: { left: leftTableMargin },
         tableWidth: tableWidth,
         head:[['Concepto','Monto']],
-        body: body,
+        body: [
+          ...mov.conceptos.map(c => [c.concepto, `Bs. ${c.monto.toFixed(2)}`]),
+          ['Descuento:', `Bs. ${mov.descuento.toFixed(2)}`],
+          [
+            { content: 'Total pagado:', styles: { fontStyle: 'bold' } },
+            { content: `Bs. ${totalRecibido.toFixed(2)}`, styles: { fontStyle: 'bold' } }
+          ]
+        ],
         theme:'grid',
-        styles:{
-          fontSize:8,
-          cellPadding:1
-        },
-        headStyles:{
-          fillColor:[58, 110, 165],
-          textColor:255,
-          halign:'center'
-        },
-        columnStyles:{
-          0:{ cellWidth: tableWidth * 0.65, halign:'left' },
-          1:{ cellWidth: tableWidth * 0.35, halign:'right' }
-        },
-        didParseCell: function (data) {
-          const resumenStart = conceptosLength;
-
-          if (data.row.index >= resumenStart) {
-            data.cell.styles.halign = 'right';
-          }
-
-          if (data.row.index === resumenStart + 2) {
-            data.cell.styles.fontStyle = 'bold';
-            data.cell.styles.halign = 'right';
-          }
-        }
+        styles:{ fontSize: 7, cellPadding:0.5 },
+        headStyles:{ fillColor:[58,110,165], textColor:255, halign:'center' }
       });
 
-      y = (doc as any).lastAutoTable.finalY + 7;
+      let y = (doc as any).lastAutoTable.finalY + 3;
 
-      // ================= MONTO EN LETRAS =================
+      // ================= TABLA MESES =================
+      const meses = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+      const pagosPorMes = new Array(12).fill(0);
+      const servPorMes = new Array(12).fill(0);
 
-      doc.setFontSize(8);
-      doc.setFont('helvetica','italic');
-      doc.text(
-        `Son: ${this.numeroALetras(totalRecibido)} Bolivianos.`,
-        15,
-        pageHeight - 25
-      );
+      facturaData.mensualidades.forEach(m => {
+        pagosPorMes[Number(m.monthNumber) - 1] = m.totalPaid;
+      });
 
-      // ================= FIRMAS =================
+      facturaData.extras.forEach(m => {
+        servPorMes[Number(m.monthNumber) - 1] = m.totalPaid;
+      });
 
-      doc.setLineWidth(0.25);
-      doc.setDrawColor(120);
+      autoTable(doc, {
+        startY: y,
+        margin: { left: 15, right: 15 },
+        tableWidth: pageWidth - 30,
+        head: [['MES', ...meses]],
+        body: [
+          ['PAGOS', ...pagosPorMes.map(v => v.toFixed(0))],
+          ['SERV.', ...servPorMes.map(v => v.toFixed(0))]
+        ],
+        styles: { fontSize: 7, halign: 'center' },
+        headStyles: { fillColor: [200,200,200] }
+      });
 
-      
-    doc.line(50,pageHeight-15,100,pageHeight-15);
-    doc.line(pageWidth-100,pageHeight-15,pageWidth-50,pageHeight-15);
+      // ================= FOOTER =================
+      doc.text(`Son: ${this.numeroALetras(totalRecibido)} Bolivianos.`, 15, pageHeight - 25);
 
-    doc.setFontSize(8);
-    doc.text('RECIBÍ CONFORME',75,pageHeight-8,{align:'center'});
-    doc.text('ENTREGUÉ CONFORME',pageWidth-75,pageHeight-8,{align:'center'});
+      doc.line(50,pageHeight-15,100,pageHeight-15);
+      doc.line(pageWidth-100,pageHeight-15,pageWidth-50,pageHeight-15);
+
+      doc.text('RECIBÍ CONFORME',75,pageHeight-8,{align:'center'});
+      doc.text('ENTREGUÉ CONFORME',pageWidth-75,pageHeight-8,{align:'center'});
     }
 
-    const pdfBlob = doc.output('blob');
-    const url = URL.createObjectURL(pdfBlob);
-    window.open(url);
+    const url = URL.createObjectURL(doc.output('blob'));
+
+    if (newWindow) {
+      newWindow.location.href = url;
+      console.log('pdf creado');
+    } else {
+      this.toast.error('Activa ventanas emergentes');
+    }
   }
   /** Modal Abono */
   studentOptions: { id: number; name: string }[] = [];
