@@ -114,6 +114,107 @@ router.get("/servicios-creados", async (req, res) => {
     apiError(res, "BUSINESS_RULE", "Error obteniendo servicios creados");
   }
 });
+router.get("/:studentId/deuda", async (req, res) => {
+  try {
+
+    const { studentId } = req.params;
+
+    /* ================= VALIDAR ESTUDIANTE ================= */
+
+    const [[student]] = await pool.query(
+      `SELECT id, nombre FROM estudiantes WHERE id = ?`,
+      [studentId]
+    );
+
+    if (!student) {
+      return res.status(404).json({
+        message: "Estudiante no encontrado"
+      });
+    }
+
+    /* ================= MENSUALIDADES ================= */
+
+    const [[mensualidades]] = await pool.query(
+      `
+      SELECT COALESCE(SUM(m.total),0) - COALESCE((
+        SELECT SUM(p.monto + p.descuento)
+        FROM pagos p
+        WHERE p.tipo = 'MENSUALIDAD'
+        AND p.referencia_id = m.id
+        AND p.reversed = 0
+      ),0) AS deuda
+      FROM mensualidades m
+      WHERE m.estudiante_id = ?
+      `,
+      [studentId]
+    );
+
+    /* ================= SERVICIOS + EVENTOS ================= */
+
+    const [[servicios]] = await pool.query(
+      `
+      SELECT COALESCE(SUM(es.total),0) - COALESCE((
+        SELECT SUM(p.monto + p.descuento)
+        FROM pagos p
+        WHERE p.tipo = 'SERVICIO'
+        AND p.referencia_id = es.id
+        AND p.reversed = 0
+      ),0) AS deuda
+      FROM estudiante_servicio es
+      WHERE es.estudiante_id = ?
+      AND es.estado != 'CANCELADO'
+      `,
+      [studentId]
+    );
+
+    /* ================= GASTOS OCASIONALES ================= */
+
+    const [[gastos]] = await pool.query(
+      `
+      SELECT COALESCE(SUM(g.total),0) - COALESCE((
+        SELECT SUM(p.monto + p.descuento)
+        FROM pagos p
+        WHERE p.tipo = 'GASTO_OCASIONAL'
+        AND p.referencia_id = g.id
+        AND p.reversed = 0
+      ),0) AS deuda
+      FROM gastos_ocacionales g
+      WHERE g.estudiante_id = ?
+      `,
+      [studentId]
+    );
+
+    /* ================= TOTAL ================= */
+
+    const total =
+      Number(mensualidades.deuda) +
+      Number(servicios.deuda) +
+      Number(gastos.deuda);
+
+    res.json({
+      student: {
+        id: student.id,
+        name: student.nombre
+      },
+      breakdown: {
+        mensualidades: Number(mensualidades.deuda),
+        servicios: Number(servicios.deuda),
+        gastos_ocacionales: Number(gastos.deuda)
+      },
+      totalDebt: total
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      message: "Error calculando deuda"
+    });
+
+  }
+});
+
 
 router.get("/", async (req, res) => {
   const [rows] = await pool.query(`

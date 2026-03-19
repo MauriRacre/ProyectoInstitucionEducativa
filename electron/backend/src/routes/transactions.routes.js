@@ -279,30 +279,16 @@ router.get("/ingresos-mes", async (req, res) => {
         MONTH(fecha) AS month,
         SUM(monto + descuento) AS total
       FROM pagos  
-      WHERE YEAR(fecha) = ?
+      WHERE YEAR(fecha) = ? AND reversed=0
       GROUP BY MONTH(fecha)
     `, [year]);
-    const [services] = await pool.query(`
-      SELECT 
-        MONTH(fecha) AS month,
-        SUM(monto + descuento) AS total
-      FROM pagos
-      WHERE YEAR(fecha) = ?
-      GROUP BY MONTH(fecha)
-    `, [year]);
+    
     const mergeData = {};
 
     for (const row of monthly) {
       mergeData[row.month] = Number(row.total);
     }
 
-    for (const row of services) {
-      if (mergeData[row.month]) {
-        mergeData[row.month] += Number(row.total);
-      } else {
-        mergeData[row.month] = Number(row.total);
-      }
-    }
     for (let i = 1; i <= 12; i++) {
       if (mergeData[i]) {
         result[months[i]] = mergeData[i];

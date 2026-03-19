@@ -446,4 +446,141 @@ router.get("/ingresos-por-curso", async (req, res) => {
   }
 });
 
+router.get("/pagos-mensualidades/:studentId", async (req, res) => {
+  try {
+
+    const { studentId } = req.params;
+    const { year } = req.query;
+
+    if (!year) {
+      return apiError(res, "VALIDATION_ERROR", "Año requerido");
+    }
+
+    /* =========================
+       MESES EN JS
+    ==========================*/
+    const meses = [
+      "Enero", "Febrero", "Marzo", "Abril",
+      "Mayo", "Junio", "Julio", "Agosto",
+      "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ];
+
+    /* =========================
+       QUERY BASE
+    ==========================*/
+    const [rows] = await pool.query(
+      `
+      SELECT 
+        m.mes,
+        m.anio,
+        COALESCE(SUM(p.monto), 0) AS total_pagado
+      FROM mensualidades m
+      LEFT JOIN pagos p 
+        ON p.referencia_id = m.id
+        AND p.tipo = 'MENSUALIDAD'
+        AND p.reversed = 0
+      WHERE m.estudiante_id = ?
+        AND m.anio = ?
+      GROUP BY m.mes, m.anio
+      ORDER BY m.mes ASC
+      `,
+      [studentId, year]
+    );
+
+    /* =========================
+       FORMATEO EN JS
+    ==========================*/
+    const data = rows.map(r => ({
+      monthNumber: r.mes,
+      monthName: meses[r.mes - 1], // 👈 aquí convertimos
+      year: r.anio,
+      totalPaid: Number(r.total_pagado)
+    }));
+
+    res.json({
+      studentId: Number(studentId),
+      year: Number(year),
+      data
+    });
+
+  } catch (error) {
+    console.error(error);
+    apiError(res, "BUSINESS_RULE", "Error obteniendo pagos por mensualidades");
+  }
+});
+router.get("/pagos-extra/:studentId", async (req, res) => {
+  try {
+
+    const { studentId } = req.params;
+    const { year } = req.query;
+
+    if (!year) {
+      return apiError(res, "VALIDATION_ERROR", "Año requerido");
+    }
+
+    /* =========================
+       MESES
+    ==========================*/
+    const meses = [
+      "Enero", "Febrero", "Marzo", "Abril",
+      "Mayo", "Junio", "Julio", "Agosto",
+      "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ];
+
+    /* =========================
+       QUERY UNIFICADA
+    ==========================*/
+    const [rows] = await pool.query(
+      `
+      SELECT 
+        MONTH(p.fecha) AS mes,
+        YEAR(p.fecha) AS anio,
+        SUM(p.monto) AS total_pagado
+      FROM pagos p
+
+      /* ================= SERVICIOS + EVENTOS ================= */
+      LEFT JOIN estudiante_servicio es 
+        ON es.id = p.referencia_id 
+        AND p.tipo = 'SERVICIO'
+
+      /* ================= GASTOS OCASIONALES ================= */
+      LEFT JOIN gastos_ocacionales g 
+        ON g.id = p.referencia_id 
+        AND p.tipo = 'GASTO_OCASIONAL'
+
+      WHERE p.reversed = 0
+        AND YEAR(p.fecha) = ?
+        AND (
+          (p.tipo = 'SERVICIO' AND es.estudiante_id = ?)
+          OR
+          (p.tipo = 'GASTO_OCASIONAL' AND g.estudiante_id = ?)
+        )
+
+      GROUP BY mes, anio
+      ORDER BY mes ASC
+      `,
+      [year, studentId, studentId]
+    );
+
+    /* =========================
+       FORMATEO JS
+    ==========================*/
+    const data = rows.map(r => ({
+      monthNumber: r.mes,
+      monthName: meses[r.mes - 1],
+      year: r.anio,
+      totalPaid: Number(r.total_pagado)
+    }));
+
+    res.json({
+      studentId: Number(studentId),
+      year: Number(year),
+      data
+    });
+
+  } catch (error) {
+    console.error(error);
+    apiError(res, "BUSINESS_RULE", "Error obteniendo pagos extra");
+  }
+});
 module.exports = router;

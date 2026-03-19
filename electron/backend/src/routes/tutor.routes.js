@@ -442,6 +442,17 @@ router.get("/:tutorId/pay-view", async (req, res) => {
         ORDER BY es.anio DESC, es.mes DESC`,
         [child.id, year]
       );
+
+      /* =========================
+          GASTOS OCASIONALES
+      =========================*/
+      const [gastosOcasionales] = await pool.query(
+        `SELECT id, concepto, total as monto, fecha
+        FROM gastos_ocacionales
+        WHERE estudiante_id = ?
+        ORDER BY fecha DESC`,
+        [child.id]
+      );
       const childConcepts = [];
 
       /* =========================
@@ -551,6 +562,61 @@ router.get("/:tutorId/pay-view", async (req, res) => {
           history
         });
       }
+      for (const g of gastosOcasionales) {
+
+      const [[sum]] = await pool.query(
+        `SELECT COALESCE(SUM(monto + descuento),0) AS total
+        FROM pagos
+        WHERE referencia_id = ?
+        AND tipo = 'GASTO_OCASIONAL'`,
+        [g.id]
+      );
+
+      const pending = g.monto - sum.total;
+
+      let history = [];
+
+      if (includeHistory === "true") {
+
+        const [rows] = await pool.query(
+          `SELECT id, fecha, monto, descuento, nota, responsable
+          FROM pagos
+          WHERE referencia_id = ?
+          AND tipo = 'GASTO_OCASIONAL'
+          AND reversed != 1`,
+          [g.id]
+        );
+
+        history = rows.map(r => ({
+          id: r.id,
+          dateISO: r.fecha,
+          type: "PAYMENT",
+          conceptLabel: `Gasto ocasional: ${g.concepto}`,
+          paid: r.monto,
+          discount: r.descuento,
+          appliedTotal: Number(r.monto) + Number(r.descuento),
+          note: r.nota,
+          staff: r.responsable,
+          movementId: r.id,
+          reversed: false
+        }));
+      }
+
+      childConcepts.push({
+        id: g.id,
+        studentId: child.id,
+        categoryId: 4,
+        categoryName: "GASTO_OCASIONAL",
+        concept: `Gasto ocasional: ${g.concepto}`,
+        period: {
+          year: new Date(g.fecha).getFullYear(),
+          month: new Date(g.fecha).getMonth() + 1
+        },
+        amountTotal: g.monto,
+        pending,
+        history
+      });
+    }
 
       paymentsByChild[child.id] = childConcepts;
     }
