@@ -75,6 +75,7 @@ interface PaymentHistoryItem {
 interface PaymentConcept {
   id: number;
   childId: number;
+  categoryName?: string;
   concept: string;
   amountTotal: number;  
   pending: number;      
@@ -406,8 +407,6 @@ export class PayPage implements OnInit{
       this.selectedIds.delete(p.id);
     } else {
       this.selectedIds.add(p.id);
-
-      // defaults: descuento 0, pagar todo lo que queda
       if (this.draftDiscount[p.id] == null) this.draftDiscount[p.id] = 0;
       if (this.draftPay[p.id] == null) this.draftPay[p.id] = this.maxPayFor(p);
     }
@@ -504,11 +503,16 @@ export class PayPage implements OnInit{
       const paid = this.draftPay[id] ?? 0;
       const discount = this.draftDiscount[id] ?? 0;
 
-      const firstWord = payment.concept?.trim().split(' ')[0]?.toLowerCase();
-      const tipo = firstWord === 'mensualidad'
-        ? 'MENSUALIDAD'
-        : 'SERVICIO';
-
+      //const firstWord = payment.concept?.trim().split(' ')[0]?.toLowerCase();
+      const tipoWord = payment.categoryName;
+      let tipo = '';
+      if (tipoWord === 'MENSUALIDAD') {
+        tipo = 'MENSUALIDAD';
+      } else if (tipoWord === 'SERVICIO') {
+        tipo = 'SERVICIO';
+      } else {
+        tipo = 'GASTO_OCASIONAL';
+      }
       movements.push({
         conceptId: id,
         tipo,
@@ -1051,7 +1055,7 @@ export class PayPage implements OnInit{
           if (!conceptId) {
             throw new Error('No se pudo obtener el id del concepto');
           }
-
+          console.log('paid', payload.montoUnitario - descuentoPorMes);
           await firstValueFrom(
             this.paymentApi.registerMovement(
               conceptId,
