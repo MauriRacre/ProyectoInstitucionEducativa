@@ -533,31 +533,35 @@ router.get("/pagos-extra/:studentId", async (req, res) => {
     const [rows] = await pool.query(
       `
       SELECT 
-        MONTH(p.fecha) AS mes,
-        YEAR(p.fecha) AS anio,
-        SUM(p.monto) AS total_pagado
-      FROM pagos p
+        mes,
+        anio,
+        SUM(total_pagado) AS total_pagado
+      FROM (
+        SELECT 
+          MONTH(p.fecha) AS mes,
+          YEAR(p.fecha) AS anio,
+          p.monto AS total_pagado
+        FROM pagos p
 
-      /* ================= SERVICIOS + EVENTOS ================= */
-      LEFT JOIN estudiante_servicio es 
-        ON es.id = p.referencia_id 
-        AND p.tipo = 'SERVICIO'
+        LEFT JOIN estudiante_servicio es 
+          ON es.id = p.referencia_id 
+          AND p.tipo IN ('SERVICIO', 'EVENTO')
 
-      /* ================= GASTOS OCASIONALES ================= */
-      LEFT JOIN gastos_ocacionales g 
-        ON g.id = p.referencia_id 
-        AND p.tipo = 'GASTO_OCASIONAL'
+        LEFT JOIN gastos_ocacionales g 
+          ON g.id = p.referencia_id 
+          AND p.tipo = 'GASTO_OCASIONAL'
 
-      WHERE p.reversed = 0
-        AND YEAR(p.fecha) = ?
-        AND (
-          (p.tipo = 'SERVICIO' AND es.estudiante_id = ?)
-          OR
-          (p.tipo = 'GASTO_OCASIONAL' AND g.estudiante_id = ?)
-        )
+        WHERE p.reversed = 0
+          AND YEAR(p.fecha) = ?
+          AND (
+            (p.tipo IN ('SERVICIO','EVENTO') AND es.estudiante_id = ?)
+            OR
+            (p.tipo = 'GASTO_OCASIONAL' AND g.estudiante_id = ?)
+          )
+      ) AS pagos_filtrados
 
       GROUP BY mes, anio
-      ORDER BY mes ASC
+      ORDER BY mes ASC;
       `,
       [year, studentId, studentId]
     );

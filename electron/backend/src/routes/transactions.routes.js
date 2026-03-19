@@ -88,6 +88,8 @@ router.get("/", async (req, res) => {
         e.paralelo AS parallel,
         CONCAT('Mensualidad ', m.mes, ' ', m.anio) AS concept,
         p.nota AS note,
+        p.monto AS paid,
+        p.descuento AS discount,
         (p.monto + p.descuento) AS amount
       FROM pagos p
       JOIN mensualidades m ON m.id = p.referencia_id
@@ -116,6 +118,8 @@ router.get("/", async (req, res) => {
         e.paralelo AS parallel,
         CONCAT('Servicio ', s.nombre) AS concept,
         p.nota AS note,
+        p.monto AS paid,
+        p.descuento AS discount,
         (p.monto + p.descuento) AS amount
       FROM pagos p
       JOIN estudiante_servicio es ON es.id = p.referencia_id
@@ -145,6 +149,8 @@ router.get("/", async (req, res) => {
         e.paralelo AS parallel,
         CONCAT('Evento ', ev.evento) AS concept,
         p.nota AS note,
+        p.monto AS paid,
+        p.descuento AS discount,
         (p.monto + p.descuento) AS amount
       FROM pagos p
       JOIN estudiante_servicio es ON es.id = p.referencia_id
@@ -174,6 +180,8 @@ router.get("/", async (req, res) => {
         e.paralelo AS parallel,
         CONCAT('Gasto ocasional ', g.concepto) AS concept,
         p.nota AS note,
+        p.monto AS paid,
+        p.descuento AS discount,
         (p.monto + p.descuento) AS amount
       FROM pagos p
       JOIN gastos_ocacionales g ON g.id = p.referencia_id
@@ -198,6 +206,8 @@ router.get("/", async (req, res) => {
         NULL AS parallel,
         mov.concepto AS concept,
         NULL AS note,
+        mov.monto AS paid,
+        0 AS discount,
         mov.monto AS amount
       FROM movimientos mov
       WHERE mov.tipo = 'GASTO'
@@ -214,7 +224,19 @@ router.get("/", async (req, res) => {
       `SELECT COUNT(*) as total FROM (${baseQuery}) AS sub`,
       params
     );
+    /* ================= TOTALES ================= */
 
+      const [[totals]] = await pool.query(
+        `
+        SELECT 
+          COALESCE(SUM(CASE WHEN type = 'PAYMENT' THEN paid ELSE 0 END),0) AS totalPayments,
+          COALESCE(SUM(CASE WHEN type = 'PAYMENT' AND paymentMethod = 'EFECTIVO' THEN paid ELSE 0 END),0) AS totalCash,
+          COALESCE(SUM(CASE WHEN type = 'PAYMENT' AND paymentMethod = 'QR' THEN paid ELSE 0 END),0) AS totalQR,
+          COALESCE(SUM(discount),0) AS totalDiscounts
+        FROM (${baseQuery}) AS sub
+        `,
+        params
+      );
     /* ================= DATA ================= */
 
     const [rows] = await pool.query(
@@ -231,7 +253,14 @@ router.get("/", async (req, res) => {
       page: Number(page),
       pageSize: limit,
       total,
-      totalPages: Math.ceil(total / limit)
+      totalPages: Math.ceil(total / limit),
+
+      summary: {
+        totalPayments: Number(totals.totalPayments),
+        totalCash: Number(totals.totalCash),
+        totalQR: Number(totals.totalQR),
+        totalDiscounts: Number(totals.totalDiscounts)
+      }
     });
 
   } catch (error) {
