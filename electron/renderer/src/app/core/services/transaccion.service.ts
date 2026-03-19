@@ -33,8 +33,15 @@ export interface PaginatedResponse<T> {
     page: number;
     pageSize: number;
     total: number;
+    totalPages: number;
+    summary: SummaryResponse;
 }
-
+export interface SummaryResponse{
+    totalPayments: number;
+    totalCash: number;
+    totalQR: number;
+    totalDiscounts: number;
+}
 export interface TransactionSearchParams {
     q?: string;
     from?: string;

@@ -256,12 +256,12 @@ export class HistoryPage implements OnInit {
     }).subscribe({
       next: res => {
         console.log(res);
-        this.generatePdf(res.data);
+        this.generatePdf(res.data, res.summary);
       }
     });
   }
 
-  async generatePdf(data: any[]) {
+  async generatePdf(data: any[], summary: any) {
     if (!data.length) {
       this.toast.error('No hay datos para exportar');
       return;
@@ -322,10 +322,10 @@ export class HistoryPage implements OnInit {
 
     doc.setFont('helvetica', 'normal');
 
-    doc.text(`Bs. ${this.ingresoTotal.toFixed(2)}`, col1, yValue);
-    doc.text(`Bs. ${this.ingresosQrAnual.toFixed(2)}`, col2, yValue);
-    doc.text(`Bs. ${this.ingresosEfectivoAnual.toFixed(2)}`, col3, yValue);
-    doc.text(`Bs. ${this.descuentoTotal.toFixed(2)}`, col4, yValue);
+    doc.text(`Bs. ${summary.totalPayments.toFixed(2)}`, col1, yValue);
+    doc.text(`Bs. ${summary.totalQR.toFixed(2)}`, col2, yValue);
+    doc.text(`Bs. ${summary.totalCash.toFixed(2)}`, col3, yValue);
+    doc.text(`Bs. ${summary.totalDiscounts.toFixed(2)}`, col4, yValue);
 
     const rows: string[][] = data.map(x => {
       const amount = Number(x.amount ?? 0);
