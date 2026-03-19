@@ -267,8 +267,13 @@ router.post("/movements/:movementId/reversal", async (req, res) => {
 
     if (movement.tipo === "MENSUALIDAD") {
       newPending = await updateEstadoMensualidad(movement.referencia_id);
-    } else {
+
+    } else if (movement.tipo === "SERVICIO") {
       newPending = await updateEstadoServicio(movement.referencia_id);
+
+    } else {
+      console.log("estoy actualizando a pendiente");
+      newPending = await updateEstadoGasto(movement.referencia_id);
     }
 
     await conn.commit();
