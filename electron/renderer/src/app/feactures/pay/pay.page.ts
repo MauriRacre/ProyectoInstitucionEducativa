@@ -871,7 +871,7 @@ export class PayPage implements OnInit{
           ['SERV.', ...servPorMes.map(v => v.toFixed(0))]
         ],
         styles: { fontSize: 7, halign: 'center' },
-        headStyles: { fillColor: [200,200,200] }
+        headStyles: {  fillColor:[58,110,165], textColor:255, halign:'center' }
       });
 
       // ================= FOOTER =================
@@ -1058,7 +1058,7 @@ export class PayPage implements OnInit{
               tipo,
               {
                 paid: payload.montoUnitario - descuentoPorMes,
-                discount: descuentoPorMes,
+                discount: 0,
                 responsible: this.currentUserName,
                 metodo_pago: payload.paymentMethod ?? 'EFECTIVO'
               }

@@ -1,12 +1,14 @@
 const pool = require("../config/db");
 
-async function updateEstadoMensualidad(id) {
-  const [[concept]] = await pool.query(
+async function updateEstadoMensualidad(db, id) {
+  const [[concept]] = await db.query(
     `SELECT total FROM mensualidades WHERE id = ?`,
     [id]
   );
 
-  const [[sum]] = await pool.query(
+  if (!concept) return;
+
+  const [[sum]] = await db.query(
     `SELECT COALESCE(SUM(monto + descuento),0) AS pagado
      FROM pagos
      WHERE tipo = 'MENSUALIDAD'
@@ -15,20 +17,21 @@ async function updateEstadoMensualidad(id) {
     [id]
   );
 
-  const nuevoEstado =
-    sum.pagado >= concept.total ? "PAGADO" : "PENDIENTE";
+  const pendiente = concept.total - sum.pagado;
 
-  await pool.query(
+  const nuevoEstado =
+    pendiente <= 0 ? "PAGADO" : "PENDIENTE";
+
+  await db.query(
     `UPDATE mensualidades SET estado = ? WHERE id = ?`,
     [nuevoEstado, id]
   );
 
-  return concept.total - sum.pagado;
+  return pendiente;
 }
-
-async function updateEstadoServicio(id) {
-  const [[concept]] = await pool.query(
-    `SELECT total, servicio_id, evento_id
+async function updateEstadoServicio(db, id) {
+  const [[concept]] = await db.query(
+    `SELECT total, evento_id
      FROM estudiante_servicio
      WHERE id = ?`,
     [id]
@@ -36,66 +39,65 @@ async function updateEstadoServicio(id) {
 
   if (!concept) return;
 
-  const tipo = concept.evento_id ? "EVENTO" : "SERVICIO";
-  console.log(tipo);
-  const [[sum]] = await pool.query(
+  const [[sum]] = await db.query(
     `SELECT COALESCE(SUM(monto + descuento),0) AS pagado
      FROM pagos
-     WHERE tipo = "SERVICIO"
+     WHERE tipo = 'SERVICIO'
      AND referencia_id = ?
      AND reversed = 0`,
-    [ id]
+    [id]
   );
+
+  const pendiente = concept.total - sum.pagado;
 
   let nuevoEstado;
 
-  if (tipo === "EVENTO") {
+  if (concept.evento_id) {
     nuevoEstado =
-      sum.pagado >= concept.total
-        ? "EVENTO_PAGADO"
-        : "EVENTO_PENDIENTE";
+      pendiente <= 0 ? "EVENTO_PAGADO" : "EVENTO_PENDIENTE";
   } else {
     nuevoEstado =
-      sum.pagado >= concept.total
-        ? "PAGADO"
-        : "PENDIENTE";
+      pendiente <= 0 ? "PAGADO" : "PENDIENTE";
   }
-  await pool.query(
+
+  await db.query(
     `UPDATE estudiante_servicio
      SET estado = ?
      WHERE id = ?`,
     [nuevoEstado, id]
   );
 
-  return concept.total - sum.pagado;
+  return pendiente;
 }
-async function updateEstadoGasto(id) {
-
-  const [[concept]] = await pool.query(
+async function updateEstadoGasto(db, id) {
+  const [[concept]] = await db.query(
     `SELECT total FROM gastos_ocacionales WHERE id = ?`,
     [id]
   );
 
-  const [[sum]] = await pool.query(
-      `SELECT COALESCE(SUM(monto + descuento),0) AS total
-      FROM pagos
-      WHERE tipo = 'GASTO_OCASIONAL'
-      AND referencia_id = ?
-      AND reversed = 0`,
-      [id]
-    );
+  if (!concept) return;
 
-    const pendiente = concept.total - sum.total;
+  const [[sum]] = await db.query(
+    `SELECT COALESCE(SUM(monto + descuento),0) AS pagado
+     FROM pagos
+     WHERE tipo = 'GASTO_OCASIONAL'
+     AND referencia_id = ?
+     AND reversed = 0`,
+    [id]
+  );
 
-    const estado = pendiente <= 0 ? "PAGADO" : "PENDIENTE";
+  const pendiente = concept.total - sum.pagado;
 
-    await pool.query(
-      `UPDATE gastos_ocacionales SET estado = ? WHERE id = ?`,
-      [estado, id]
-    );
+  const nuevoEstado =
+    pendiente <= 0 ? "PAGADO" : "PENDIENTE";
 
-    return pendiente;
-  }
+  await db.query(
+    `UPDATE gastos_ocacionales SET estado = ? WHERE id = ?`,
+    [nuevoEstado, id]
+  );
+
+  return pendiente;
+}
 module.exports = {
   updateEstadoMensualidad,
   updateEstadoServicio,

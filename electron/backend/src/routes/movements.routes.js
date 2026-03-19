@@ -110,13 +110,13 @@ router.post("/payment-concepts/:tipo/:conceptId/movements", async (req, res) => 
     let newPending;
 
     if (tipo === "MENSUALIDAD") {
-      newPending = await updateEstadoMensualidad(id);
+      newPending = await updateEstadoMensualidad(pool, id);
     } 
     else if (tipo === "SERVICIO") {
-      newPending = await updateEstadoServicio(id);
+      newPending = await updateEstadoServicio(pool, id);
     }
     else {
-      newPending = await updateEstadoGasto(id);
+      newPending = await updateEstadoGasto(pool, id);
     }
 
     /* ================= OBTENER INFO PARA CORREO ================= */
@@ -266,14 +266,14 @@ router.post("/movements/:movementId/reversal", async (req, res) => {
     let newPending;
 
     if (movement.tipo === "MENSUALIDAD") {
-      newPending = await updateEstadoMensualidad(movement.referencia_id);
+      newPending = await updateEstadoMensualidad(conn, movement.referencia_id);
 
     } else if (movement.tipo === "SERVICIO") {
-      newPending = await updateEstadoServicio(movement.referencia_id);
+      newPending = await updateEstadoServicio(conn, movement.referencia_id);
 
     } else {
       console.log("estoy actualizando a pendiente");
-      newPending = await updateEstadoGasto(movement.referencia_id);
+      newPending = await updateEstadoGasto(conn, movement.referencia_id);
     }
 
     await conn.commit();
