@@ -90,6 +90,7 @@ interface PayViewApi {
       id: number;
       studentId: number;
       categoryId: string;
+      categoryName: string;
       concept: string;
       period?: { year: number; month: string | number };
       amountTotal: string | null;
@@ -218,6 +219,7 @@ export class PayPage implements OnInit{
               id: Number(h.id),
               dateISO: h.dateISO,
               conceptLabel: h.conceptLabel,
+              //categoryName:h.categoryName,
               paid: this.money(h.paid),
               discount: this.money(h.discount),
               appliedTotal: this.money(h.appliedTotal),
@@ -234,6 +236,7 @@ export class PayPage implements OnInit{
             return {
               id: Number(p.id),
               childId: Number(p.studentId ?? childId),
+              categoryName:p.categoryName ?? '',
               concept: p.concept ?? '',
               amountTotal: amountTotalNorm,
               pending: pendingNorm,
@@ -505,10 +508,12 @@ export class PayPage implements OnInit{
 
       //const firstWord = payment.concept?.trim().split(' ')[0]?.toLowerCase();
       const tipoWord = payment.categoryName;
-      let tipo = '';
-      if (tipoWord === 'MENSUALIDAD') {
+      console.log(tipoWord);
+      console.log(tipoWord === "SERVICIO");
+      let tipo: string = '';
+      if (tipoWord === "MENSUALIDAD" || tipoWord === "mensualidad") {
         tipo = 'MENSUALIDAD';
-      } else if (tipoWord === 'SERVICIO') {
+      } else if (tipoWord === "SERVICIO" || tipoWord === "servicio" || tipoWord === "EVENTO" || tipoWord === "evento") {
         tipo = 'SERVICIO';
       } else {
         tipo = 'GASTO_OCASIONAL';
