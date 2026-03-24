@@ -22,7 +22,7 @@ export class ModalAbono {
   errorMsg = '';
 
   form!: FormGroup;
-  paymentMethod: 'cash' | 'qr' = 'cash';
+  paymentMethod: 'EFECTIVO' | 'QR' = 'EFECTIVO';
   meses: string[] = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
