@@ -118,18 +118,26 @@ export class StudentService {
     getNominaCourses(): Observable<any[]>{
         return this.http.get<any[]>(`${this.baseUrl}/nomina/courses`);
     }
-    getNominaStudents(params:{
-        grade:string;
+    getNominaStudents(params: {
+        grade: string;
         parallel: string;
         q?: string;
         page: number;
         pageSize: number;
-    }): Observable<{items: StudentRow[]; total: number}>{
-        return this.http.get<{items: StudentRow[]; total: number}>(
+        }): Observable<{ items: StudentRow[]; total: number }> {
+
+        let httpParams = new HttpParams()
+            .set('grade', params.grade)
+            .set('parallel', params.parallel)
+            .set('q', params.q ?? '')
+            .set('page', params.page.toString())
+            .set('pageSize', params.pageSize.toString());
+
+        return this.http.get<{ items: StudentRow[]; total: number }>(
             `${this.baseUrl}/nomina`,
-            {params}
+            { params: httpParams }
         );
-    }
+        }
     // ===============================
     // GET /cursos extras
     // ===============================

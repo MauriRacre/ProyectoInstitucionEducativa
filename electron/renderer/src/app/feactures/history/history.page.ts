@@ -414,13 +414,12 @@ export class HistoryPage implements OnInit {
       this.toast.error('Error inesperado.')
       return;
     };
-
     this.studentService.getNominaStudents({
       grade: this.nominaSelectedCourse.grade,
       parallel: this.nominaSelectedCourse.parallel,
       q: this.nominaQ,
       page: 1,
-      pageSize: 10000
+      pageSize: 10000,
     }).subscribe({
       next: (res) => {
         this.pdfNomina(res.items);
@@ -436,7 +435,6 @@ export class HistoryPage implements OnInit {
       this.toast.error('No hay datos para exportar');
       return;
     }
-
     const doc = new jsPDF('portrait');
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
