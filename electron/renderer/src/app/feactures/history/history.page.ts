@@ -45,7 +45,7 @@ export class HistoryPage implements OnInit {
   ingresosQrHoy = 0;
   ingresosEfectivoHoy = 0;
   ingresosHoy = 0;
-
+  egresosHoy = 0;
   ingresosQrAnual = 0;
   ingresosEfectivoAnual = 0;
   ingresoTotal = 0;
@@ -225,7 +225,8 @@ export class HistoryPage implements OnInit {
       this.descuentos = res.descuentos;
       this.ingresosQrHoy = Number(res.cajaHoy.qr || 0);
       this.ingresosEfectivoHoy = Number(res.cajaHoy.efectivo || 0);
-      this.ingresosHoy = Number(res.cajaHoy.total || 0);
+      this.egresosHoy = Number(res.cajaHoy.total_egresos || 0);
+      this.ingresosHoy = Number(res.cajaHoy.neto || 0);
       this.ingresosQrAnual = Number(res.cajaTotal.qr || 0);
       this.ingresosEfectivoAnual = Number(res.cajaTotal.efectivo || 0);
       this.ingresoTotal = Number(res.cajaTotal.total || 0);

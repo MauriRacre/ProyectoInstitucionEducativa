@@ -42,9 +42,10 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
     @Input() ingresosQrHoy!: number;
     @Input() ingresosEfectivoHoy!: number;
     @Input() ingresosHoy!: number;
+    @Input() egresosHoy !: number;
     @Input() ingresosQrAnual!: number;
     @Input() ingresosEfectivoAnual!: number;
-
+    
     @Output() monthChange = new EventEmitter<number>();
 
     // =============================
@@ -275,6 +276,7 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
             }
         );
     }
+
     private baseBarOptions = {
         responsive: true,
         maintainAspectRatio: false,
@@ -422,6 +424,7 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
 
         const qrHoy = Number(this.ingresosQrHoy || 0);
         const efectivoHoy = Number(this.ingresosEfectivoHoy || 0);
+        const egresosHoy = Number(this.egresosHoy || 0 );
         const totalHoy = Number(this.ingresosHoy || 0);
 
         const qrAnual = Number(this.ingresosQrAnual || 0);
@@ -460,7 +463,8 @@ export class EstadisticasComponent implements OnChanges, AfterViewInit, OnDestro
 
         // TOTAL
         doc.setTextColor(0, 0, 0);
-        doc.text(`Total: Bs. ${totalHoy.toFixed(2)}`, col1, currentY);
+        doc.text(`Egresos: Bs. ${totalHoy.toFixed(2)}`, col1, currentY);
+        doc.text(`Neto: Bs. ${totalHoy.toFixed(2)}`, col2, currentY);
 
         currentY += 12;
 
