@@ -160,7 +160,7 @@ router.delete("/:id", async (req, res) => {
     const id = Number(req.params.id);
 
     const [result] = await pool.query(
-      "DELETE FROM servicio WHERE id = ?",
+      "DELETE FROM servicios WHERE id = ?",
       [id]
     );
 
