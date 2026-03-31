@@ -508,8 +508,12 @@ export class PayPage implements OnInit{
 
       //const firstWord = payment.concept?.trim().split(' ')[0]?.toLowerCase();
       const tipoWord = payment.categoryName;
-      console.log(tipoWord);
-      console.log(tipoWord === "SERVICIO");
+      const fecha = new Intl.DateTimeFormat('sv-SE', {
+          timeZone: 'America/La_Paz'
+      }).format(new Date());
+      console.log("la fecha es: ",fecha);
+      console.log(metodoPago);
+      console.log(metodoPago === "QR");
       let tipo: string = '';
       if (tipoWord === "MENSUALIDAD" || tipoWord === "mensualidad") {
         tipo = 'MENSUALIDAD';
@@ -525,7 +529,7 @@ export class PayPage implements OnInit{
           paid,
           discount,
           responsible: this.currentUserName,
-          paymentMethod: metodoPago
+          metodo_pago: metodoPago
         }
       });
 
@@ -1118,7 +1122,9 @@ export class PayPage implements OnInit{
   }) {
 
     const today = new Date();
-    const fecha = today.toISOString().split('T')[0]; 
+    const fecha = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'America/La_Paz'
+    }).format(new Date());
     const month = today.getMonth() + 1;
 
     this.closeModalMulta();

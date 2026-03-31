@@ -213,55 +213,54 @@ router.get("/descuentos-anual", async (req, res) => {
 
   }
 });
-
 router.get("/caja/hoy", async (req, res) => {
   try {
     const { date } = req.query;
-    const [rows] = await pool.query(`
+
+    const [[ingresos]] = await pool.query(`
       SELECT
         COUNT(*) AS total_pagos,
-
         SUM(CASE 
             WHEN metodo_pago = 'EFECTIVO' AND reversed = 0 
-            THEN monto 
-            ELSE 0 
+            THEN monto ELSE 0 
         END) AS efectivo,
-
         SUM(CASE 
             WHEN metodo_pago = 'QR' AND reversed = 0 
-            THEN monto 
-            ELSE 0 
+            THEN monto ELSE 0 
         END) AS qr,
-
         SUM(CASE 
             WHEN reversed = 0 
-            THEN descuento 
-            ELSE 0 
+            THEN descuento ELSE 0 
         END) AS descuentos,
-
         SUM(CASE 
             WHEN reversed = 0 
-            THEN monto 
-            ELSE 0 
+            THEN monto ELSE 0 
         END) AS total
-
       FROM pagos
-      WHERE Date(fecha) = ?
-    `,[date]);
+      WHERE DATE(fecha) = ?
+    `, [date]);
 
-    res.json(rows[0]);
+    const [[egresos]] = await pool.query(`
+      SELECT
+        COUNT(*) AS total_gastos,
+        COALESCE(SUM(monto), 0) AS total_egresos
+      FROM movimientos
+      WHERE tipo = 'GASTO'
+        AND DATE(fecha) = ?
+    `, [date]);
 
-  } catch (error) {
-
-    console.error(error);
-
-    res.status(500).json({
-      message: "Error obteniendo caja del día"
+    res.json({
+      ...ingresos,
+      total_gastos:  egresos.total_gastos,
+      total_egresos: egresos.total_egresos,
+      neto:          Number(ingresos.total) - Number(egresos.total_egresos)
     });
 
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error obteniendo caja del día" });
   }
 });
-
 router.get("/descuentos-anual", async (req, res) => {
   try {
 

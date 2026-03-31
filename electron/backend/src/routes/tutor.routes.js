@@ -90,8 +90,14 @@ router.get("/", async (req, res) => {
 
     if (concepto) {
       const parts = concepto.trim().split(" ");
-      grado = parts[0] ?? null;
-      paralelo = parts[1] ?? null;
+      const last = parts[parts.length - 1];
+      if (["A", "B", "C"].includes(last)) {
+        paralelo = last;
+        grado = parts.slice(0, -1).join(" ") || null;
+      } else {
+        grado = parts.join(" ");
+        paralelo = null;
+      }
     }
 
     /* ---------------- FILTROS DINÁMICOS ---------------- */

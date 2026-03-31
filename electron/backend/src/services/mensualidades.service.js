@@ -15,7 +15,7 @@ async function generarMensualidades(pool) {
     for (const estudiante of estudiantes) {
 
       const monto = estudiante.monto || 0;
-
+      //console.log("estudiante: ", estudiante.id, "monto: ",monto);
       await pool.query(
         `
         INSERT INTO mensualidades 

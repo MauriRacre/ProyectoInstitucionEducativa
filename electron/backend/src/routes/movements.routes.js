@@ -80,7 +80,9 @@ router.post("/payment-concepts/:tipo/:conceptId/movements", async (req, res) => 
       return apiError(res, "BUSINESS_RULE", "El pago supera el pendiente");
     }
 
-    const fecha = dateISO || new Date().toISOString().slice(0, 10);
+    const fecha = new Intl.DateTimeFormat('sv-SE', {
+          timeZone: 'America/La_Paz'
+      }).format(new Date());
 
     /* ================= REGISTRAR PAGO ================= */
 

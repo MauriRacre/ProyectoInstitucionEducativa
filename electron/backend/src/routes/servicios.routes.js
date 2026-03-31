@@ -252,10 +252,10 @@ router.get("/ingresos-curso", async (req, res) => {
         s.nombre AS curso,
         COALESCE(SUM(p.monto + p.descuento), 0) AS total
       FROM pagos p
-      JOIN mensualidades m ON m.id = p.referencia_id
-      JOIN estudiante_servicio es ON es.id = m.estudiante_id
+      JOIN estudiante_servicio es ON es.id = p.referencia_id
       JOIN servicios s ON s.id = es.servicio_id
-      WHERE es.mes = ?
+      WHERE p.tipo = 'SERVICIO'
+        AND es.mes = ?
         AND es.anio = ?
         AND p.reversed = 0
       GROUP BY s.id, s.nombre
